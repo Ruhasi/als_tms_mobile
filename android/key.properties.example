@@ -1,0 +1,4 @@
+storePassword=<your-store-password>
+keyPassword=<your-key-password>
+keyAlias=als_tms_upload
+storeFile=keystore/als-tms-upload-keystore.jks
