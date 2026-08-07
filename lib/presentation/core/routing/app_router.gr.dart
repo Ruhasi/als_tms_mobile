@@ -11,6 +11,62 @@
 part of 'app_router.dart';
 
 /// generated route for
+/// [AllJobRequestsPage]
+class AllJobRequestsRoute extends PageRouteInfo<AllJobRequestsRouteArgs> {
+  AllJobRequestsRoute({
+    Key? key,
+    String? initialFilter,
+    List<PageRouteInfo>? children,
+  }) : super(
+         AllJobRequestsRoute.name,
+         args: AllJobRequestsRouteArgs(key: key, initialFilter: initialFilter),
+         rawQueryParams: {'filter': initialFilter},
+         initialChildren: children,
+       );
+
+  static const String name = 'AllJobRequestsRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final queryParams = data.queryParams;
+      final args = data.argsAs<AllJobRequestsRouteArgs>(
+        orElse: () => AllJobRequestsRouteArgs(
+          initialFilter: queryParams.optString('filter'),
+        ),
+      );
+      return AllJobRequestsPage(
+        key: args.key,
+        initialFilter: args.initialFilter,
+      );
+    },
+  );
+}
+
+class AllJobRequestsRouteArgs {
+  const AllJobRequestsRouteArgs({this.key, this.initialFilter});
+
+  final Key? key;
+
+  final String? initialFilter;
+
+  @override
+  String toString() {
+    return 'AllJobRequestsRouteArgs{key: $key, initialFilter: $initialFilter}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AllJobRequestsRouteArgs) return false;
+    return key == other.key && initialFilter == other.initialFilter;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ initialFilter.hashCode;
+}
+
+/// generated route for
 /// [DashboardPage]
 class DashboardRoute extends PageRouteInfo<void> {
   const DashboardRoute({List<PageRouteInfo>? children})
@@ -75,6 +131,22 @@ class JobDetailRouteArgs {
 
   @override
   int get hashCode => key.hashCode ^ jobId.hashCode;
+}
+
+/// generated route for
+/// [JobSummaryPage]
+class JobSummaryRoute extends PageRouteInfo<void> {
+  const JobSummaryRoute({List<PageRouteInfo>? children})
+    : super(JobSummaryRoute.name, initialChildren: children);
+
+  static const String name = 'JobSummaryRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const JobSummaryPage();
+    },
+  );
 }
 
 /// generated route for

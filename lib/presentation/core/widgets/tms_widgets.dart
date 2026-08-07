@@ -221,3 +221,149 @@ Future<TmsOption?> showOptionSheet(
     },
   );
 }
+
+/// A searchable multi-select sheet for API-backed location lists.
+Future<List<TmsOption>?> showMultiOptionSheet(
+  BuildContext context, {
+  required String title,
+  required List<TmsOption> options,
+  required List<TmsOption> initiallySelected,
+}) {
+  return showModalBottomSheet<List<TmsOption>>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) {
+      var selected = List<TmsOption>.from(initiallySelected);
+      var query = '';
+
+      return DraggableScrollableSheet(
+        initialChildSize: .8,
+        minChildSize: .5,
+        maxChildSize: .94,
+        builder: (_, controller) => StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = options.where((option) {
+              final needle = query.toLowerCase();
+              return option.title.toLowerCase().contains(needle) ||
+                  option.subtitle.toLowerCase().contains(needle);
+            }).toList();
+
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              decoration: const BoxDecoration(
+                color: TmsColors.canvas,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: TmsColors.line,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title.toUpperCase(),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  ),
+                  TextField(
+                    onChanged: (value) => setModalState(() => query = value),
+                    decoration: InputDecoration(
+                      hintText: 'Search delivery locations',
+                      prefixIcon: const Icon(
+                        CupertinoIcons.search,
+                        color: TmsColors.muted,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No delivery locations found',
+                              style: TextStyle(color: TmsColors.muted),
+                            ),
+                          )
+                        : ListView.separated(
+                            controller: controller,
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (_, index) {
+                              final item = filtered[index];
+                              final isSelected = selected.any(
+                                (selectedItem) => selectedItem.id == item.id,
+                              );
+                              return Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                child: CheckboxListTile(
+                                  value: isSelected,
+                                  activeColor: TmsColors.orange,
+                                  controlAffinity:
+                                      ListTileControlAffinity.trailing,
+                                  title: Text(
+                                    item.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  subtitle: Text(item.subtitle),
+                                  onChanged: (checked) {
+                                    setModalState(() {
+                                      if (checked ?? false) {
+                                        selected.add(item);
+                                      } else {
+                                        selected = selected
+                                            .where(
+                                              (selectedItem) =>
+                                                  selectedItem.id != item.id,
+                                            )
+                                            .toList();
+                                      }
+                                    });
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: 12),
+                  TmsButton(
+                    label: selected.isEmpty
+                        ? 'Select delivery locations'
+                        : 'Done · ${selected.length} selected',
+                    onPressed: selected.isEmpty
+                        ? null
+                        : () => Navigator.pop(context, selected),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+    },
+  );
+}

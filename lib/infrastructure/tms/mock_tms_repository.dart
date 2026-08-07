@@ -17,6 +17,8 @@ class MockTmsRepository {
       provider: 'ALS Logistics (Pvt) Ltd',
       vehicle: 'LP-4471 · 20 ft Container Truck',
       driver: 'K. Wijesinghe',
+      isFlagged: true,
+      flagReason: 'Delay',
       comments: [
         JobComment(
           author: 'Nuwan Perera',
@@ -56,8 +58,10 @@ class MockTmsRepository {
       shipper: 'CBL Ranala Plant',
       invoiceTo: 'Ceylon Biscuits Ltd',
       provider: 'ALS Logistics (Pvt) Ltd',
-      vehicle: 'LP-4471 · 20 ft Container Truck',
-      driver: 'K. Wijesinghe',
+      vehicle: '',
+      driver: '',
+      isFlagged: true,
+      flagReason: 'Documentation',
     ),
     TmsJob(
       id: 'JOB-4459',
@@ -115,6 +119,41 @@ class MockTmsRepository {
           id: 'port',
           title: 'Trincomalee Port',
           subtitle: '257 km · approx. 5 h 30 m',
+        ),
+      ],
+      'deliveryLocations': const [
+        TmsOption(
+          id: 'kandy',
+          title: 'Kandy Hub — Pallekele',
+          subtitle: '134 km · approx. 3 h 10 m',
+        ),
+        TmsOption(
+          id: 'galle',
+          title: 'Galle Depot',
+          subtitle: '126 km · approx. 2 h 40 m',
+        ),
+        TmsOption(
+          id: 'jaffna',
+          title: 'Jaffna Yard',
+          subtitle: '396 km · approx. 8 h 05 m',
+        ),
+        TmsOption(
+          id: 'port',
+          title: 'Trincomalee Port',
+          subtitle: '257 km · approx. 5 h 30 m',
+        ),
+      ],
+      'vehicleType': const [
+        TmsOption(
+          id: '20ft',
+          title: '20 ft Container Truck',
+          subtitle: 'Payload up to 18 t',
+          isAuto: true,
+        ),
+        TmsOption(
+          id: '40ft',
+          title: '40 ft Container Truck',
+          subtitle: 'Payload up to 26 t',
         ),
       ],
       'vehicle': const [

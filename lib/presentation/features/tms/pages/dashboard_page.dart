@@ -1,13 +1,15 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
+import 'package:flutter_template/presentation/features/tms/widgets/job_list_item.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../../application/tms/tms_providers.dart';
-import '../../../../domain/tms/models/tms_models.dart';
 import '../../../core/misc/text_style_provider.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/theme/tms_theme.dart';
+// Kept for the commented TmsButton below — remove if that CTA is deleted.
+// ignore: unused_import
 import '../../../core/widgets/tms_widgets.dart';
 
 @RoutePage()
@@ -27,24 +29,20 @@ class DashboardPage extends ConsumerWidget {
         backgroundColor: TmsColors.canvas,
         body: Column(
           children: [
-            
             Container(
               width: double.infinity,
               padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 19.h),
               color: TmsColors.ink,
               child: Column(
-
                 children: [
                   SizedBox(height: kToolbarHeight),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            
                             Text(
                               'Tuesday, 4 August',
                               style: styles.bodySmall.copyWith(
@@ -130,6 +128,9 @@ class DashboardPage extends ConsumerWidget {
                         'OPEN JOBS',
                         TmsColors.ink,
                         styles,
+                        onTap: () => context.router.push(
+                          AllJobRequestsRoute(initialFilter: 'open'),
+                        ),
                       ),
                       SizedBox(width: 13.w),
                       _metric(
@@ -137,6 +138,9 @@ class DashboardPage extends ConsumerWidget {
                         'DELIVERED,\n7D',
                         TmsColors.green,
                         styles,
+                        onTap: () => context.router.push(
+                          AllJobRequestsRoute(initialFilter: 'delivered'),
+                        ),
                       ),
                       SizedBox(width: 13.w),
                       _metric(
@@ -144,10 +148,18 @@ class DashboardPage extends ConsumerWidget {
                         'FLAGGED',
                         TmsColors.orange,
                         styles,
+                        onTap: () => context.router.push(
+                          AllJobRequestsRoute(initialFilter: 'flagged'),
+                        ),
                       ),
                     ],
                   ),
                   SizedBox(height: 18.h),
+                  _summaryCard(
+                    styles,
+                    onTap: () => context.router.push(const JobSummaryRoute()),
+                  ),
+                  SizedBox(height: 22.h),
                   Row(
                     children: [
                       Text(
@@ -160,9 +172,9 @@ class DashboardPage extends ConsumerWidget {
                       const Spacer(),
                       TextButton(
                         onPressed: () =>
-                            context.router.push(const WeeklyStatusRoute()),
+                            context.router.push(AllJobRequestsRoute()),
                         child: Text(
-                          'Last week',
+                          'See all',
                           style: styles.bodyMedium.copyWith(
                             color: TmsColors.orange,
                             fontWeight: FontWeight.w800,
@@ -173,15 +185,60 @@ class DashboardPage extends ConsumerWidget {
                     ],
                   ),
                   SizedBox(height: 7.h),
-                  ...data.jobs.map((job) => _jobCard(context, job, styles)),
+                  ...data.jobs.map(
+                    (job) => Column(
+                      children: [
+                        JobListItem(job: job, styles: styles),
+                        SizedBox(height: 12.h),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 15.h),
-              child: TmsButton(
-                label: 'New job request',
-                onPressed: () => context.router.push(const NewJobRoute()),
+            // Previous sticky CTA — restore if customer prefers the simpler look.
+            // Padding(
+            //   padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 15.h),
+            //   child: TmsButton(
+            //     label: 'New job request',
+            //     onPressed: () => context.router.push(const NewJobRoute()),
+            //   ),
+            // ),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 16.h),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .06),
+                    blurRadius: 12,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                height: 42.h,
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: TmsColors.orange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  onPressed: () => context.router.push(const NewJobRoute()),
+                  icon: Icon(Icons.add_rounded, size: 22.sp),
+                  label: Text(
+                    'New job request',
+                    style: styles.bodyMedium.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15.sp,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -191,13 +248,81 @@ class DashboardPage extends ConsumerWidget {
   }
 }
 
-Widget _metric(String value, String label, Color color, dynamic styles) =>
-    Expanded(
+Widget _summaryCard(dynamic styles, {required VoidCallback onTap}) => Material(
+  color: TmsColors.ink,
+  borderRadius: BorderRadius.circular(15.r),
+  child: InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(15.r),
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(17.w, 14.h, 15.w, 14.h),
+      child: Row(
+        children: [
+          Container(
+            width: 38.w,
+            height: 38.w,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .11),
+              borderRadius: BorderRadius.circular(10.r),
+            ),
+            child: Icon(
+              Icons.insights_outlined,
+              color: TmsColors.orange,
+              size: 21.sp,
+            ),
+          ),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Show summary',
+                  style: styles.bodyMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14.sp,
+                  ),
+                ),
+                SizedBox(height: 2.h),
+                Text(
+                  'Review last week or last month',
+                  style: styles.bodySmall.copyWith(
+                    color: const Color(0xFFB8BEC7),
+                    fontSize: 10.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.arrow_forward_ios_rounded,
+            color: Colors.white,
+            size: 16,
+          ),
+        ],
+      ),
+    ),
+  ),
+);
+
+Widget _metric(
+  String value,
+  String label,
+  Color color,
+  dynamic styles, {
+  VoidCallback? onTap,
+}) => Expanded(
+  child: Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(18.r),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18.r),
       child: Container(
         height: 80.h,
         padding: EdgeInsets.fromLTRB(19.w, 19.h, 8.w, 12.h),
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(18.r),
           boxShadow: [
             BoxShadow(
@@ -231,122 +356,6 @@ Widget _metric(String value, String label, Color color, dynamic styles) =>
           ],
         ),
       ),
-    );
-
-Widget _jobCard(BuildContext context, TmsJob job, dynamic styles) {
-  final distance = switch (job.id) {
-    'JOB-4471' => '118 km',
-    'JOB-4488' => '34 km',
-    'JOB-4433' => '126 km',
-    _ => '257 km',
-  };
-  final vehicle = job.status == JobStatus.requested
-      ? 'Awaiting vehicle'
-      : job.vehicle.replaceFirst(' Container Truck', '');
-  return Padding(
-    padding: EdgeInsets.only(bottom: 12.h),
-    child: Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18.r),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18.r),
-        onTap: () => context.router.push(JobDetailRoute(jobId: job.id)),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    job.id,
-                    style: styles.labelSmall.copyWith(
-                      fontSize: 12.sp,
-                      letterSpacing: 1.35,
-                    ),
-                  ),
-                  const Spacer(),
-                  StatusPill(job.status),
-                ],
-              ),
-              SizedBox(height: 8.h),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    children: [
-                      Icon(
-                        Icons.circle_outlined,
-                        size: 14.sp,
-                        color: TmsColors.muted,
-                      ),
-                      SizedBox(height: 4.h),
-                      Container(
-                        width: 2.w,
-                        height: 18.h,
-                        color: TmsColors.line,
-                      ),
-                      SizedBox(height: 4.h),
-                      Container(
-                        width: 10.w,
-                        height: 10.w,
-                        color: TmsColors.orange,
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 11.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          job.pickup,
-                          style: styles.bodyMedium.copyWith(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
-                          ),
-                        ),
-                        SizedBox(height: 4.h),
-                        Text(
-                          distance,
-                          style: styles.bodySmall.copyWith(fontSize: 12.sp),
-                        ),
-                        SizedBox(height: 4.h),
-                        Text(
-                          job.destination,
-                          style: styles.bodyMedium.copyWith(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 4.h),
-              Divider(height: 1, color: TmsColors.line),
-              SizedBox(height: 4.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      job.pickupTime,
-                      style: styles.bodySmall.copyWith(fontSize: 10.sp),
-                    ),
-                  ),
-                  Text(
-                    vehicle,
-                    style: styles.bodySmall.copyWith(fontSize: 10.sp),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     ),
-  );
-}
+  ),
+);

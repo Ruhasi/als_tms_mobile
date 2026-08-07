@@ -10,6 +10,7 @@ import '../../../../domain/tms/models/tms_models.dart';
 import '../../../core/misc/text_style_provider.dart';
 import '../../../core/theme/tms_theme.dart';
 import '../../../core/widgets/tms_widgets.dart';
+import '../widgets/vehicle_assignment_sheet.dart';
 
 @RoutePage()
 class JobDetailPage extends HookConsumerWidget {
@@ -22,6 +23,9 @@ class JobDetailPage extends HookConsumerWidget {
     final workflowStatus = useState('In transit');
     final arrival = useState('6 Aug, 09:00');
     final delivery = useState('6 Aug, 16:30');
+    final assignedVehicle = useState<String?>(null);
+    final assignedDriver = useState<String?>(null);
+
     return ref
         .watch(jobProvider(jobId))
         .when(
@@ -29,191 +33,298 @@ class JobDetailPage extends HookConsumerWidget {
               const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (_, _) =>
               const Scaffold(body: Center(child: Text('Job unavailable'))),
-          data: (job) => Scaffold(
-            backgroundColor: TmsColors.canvas,
-            body: SafeArea(
-              child: Column(
-                children: [
-                  Container(
-                    height: 116.h,
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 16.h,
-                    ),
-                    color: TmsColors.ink,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        _headerAction(
-                          context,
-                          CupertinoIcons.chevron_back,
-                          () => context.router.maybePop(),
-                        ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                job.id,
-                                style: styles.labelSmall.copyWith(
-                                  color: TmsColors.textGray,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                              SizedBox(height: 3.h),
-                              Text(
-                                'JOB REQUEST',
-                                style: styles.titleMedium.copyWith(
-                                  color: Colors.white,
-                                  fontSize: 16.sp,
-                                  letterSpacing: .4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        _headerAction(
-                          context,
-                          CupertinoIcons.flag_fill,
-                          () => _showFlagPicker(
+          data: (job) {
+            final vehicle = assignedVehicle.value ?? job.vehicle;
+            final driver = assignedDriver.value ?? job.driver;
+            final needsVehicle = isVehicleUnassigned(vehicle);
+
+            Future<void> assignVehicle() async {
+              final result = await showVehicleAssignmentSheet(
+                context,
+                vehicle: isVehicleUnassigned(vehicle) ? '' : vehicle,
+                driver: driver.isEmpty || driver == 'Not assigned'
+                    ? ''
+                    : driver,
+                repository: ref.read(tmsRepositoryProvider),
+              );
+              if (result == null) return;
+              assignedVehicle.value = result.vehicle;
+              assignedDriver.value = result.driver;
+            }
+
+            return Scaffold(
+              backgroundColor: TmsColors.canvas,
+              body: SafeArea(
+                child: Column(
+                  children: [
+                    Container(
+                      height: 116.h,
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 16.h,
+                      ),
+                      color: TmsColors.ink,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _headerAction(
                             context,
-                            styles,
+                            CupertinoIcons.chevron_back,
+                            () => context.router.maybePop(),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView(
-                      padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 94.h),
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(14.w),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFEEE6),
-                            borderRadius: BorderRadius.circular(11.r),
-                            border: Border.all(color: const Color(0xFFF7DECF)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Editable for 38 more minutes',
-                                style: styles.bodyMedium.copyWith(
-                                  color: TmsColors.orange,
-                                  fontWeight: FontWeight.w900,
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  job.id,
+                                  style: styles.labelSmall.copyWith(
+                                    color: TmsColors.textGray,
+                                    letterSpacing: 1.1,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(height: 3.h),
-                              Text(
-                                'Changes after the window need a dispatcher\namendment.',
-                                style: styles.bodySmall.copyWith(
-                                  fontSize: 11.sp,
+                                SizedBox(height: 3.h),
+                                Text(
+                                  'JOB REQUEST',
+                                  style: styles.titleMedium.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 16.sp,
+                                    letterSpacing: .4,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 13.h),
-                        _routeCard(
-                          job,
-                          styles,
-                          workflowStatus.value,
-                          arrival.value,
-                          delivery.value,
-                          () => _showStatusPicker(
+                          _headerAction(
                             context,
+                            CupertinoIcons.flag_fill,
+                            () => _showFlagPicker(context, styles),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 94.h),
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(14.w),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEEE6),
+                              borderRadius: BorderRadius.circular(11.r),
+                              border: Border.all(
+                                color: const Color(0xFFF7DECF),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Editable for 38 more minutes',
+                                  style: styles.bodyMedium.copyWith(
+                                    color: TmsColors.orange,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                SizedBox(height: 3.h),
+                                Text(
+                                  'Changes after the window need a dispatcher\namendment.',
+                                  style: styles.bodySmall.copyWith(
+                                    fontSize: 11.sp,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (needsVehicle) ...[
+                            SizedBox(height: 13.h),
+                            _assignVehicleBanner(
+                              styles,
+                              onAssign: assignVehicle,
+                            ),
+                          ],
+                          SizedBox(height: 13.h),
+                          _routeCard(
+                            job,
                             styles,
                             workflowStatus.value,
-                            (value) => workflowStatus.value = value,
-                          ),
-                        ),
-                        SizedBox(height: 13.h),
-                        _detailCard(job, styles),
-                        SizedBox(height: 15.h),
-                        Text(
-                          'ACTIVITY',
-                          style: styles.labelSmall.copyWith(
-                            fontSize: 11.sp,
-                            letterSpacing: 1.4,
-                          ),
-                        ),
-                        SizedBox(height: 9.h),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 14.w,
-                            vertical: 12.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          child: Column(
-                            children: job.comments
-                                .map((comment) => _activityRow(comment, styles))
-                                .toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.fromLTRB(18.w, 10.h, 18.w, 16.h),
-                    color: TmsColors.canvas,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TmsButton(
-                            dark: true,
-                            label: 'Edit',
-                            onPressed: () => _showEditJobForm(
+                            arrival.value,
+                            delivery.value,
+                            () => _showStatusPicker(
                               context,
                               styles,
                               workflowStatus.value,
-                              arrival.value,
-                              delivery.value,
                               (value) => workflowStatus.value = value,
-                              (value) => arrival.value = value,
-                              (value) => delivery.value = value,
                             ),
                           ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Expanded(
-                          child: SizedBox(
-                            height: 48.h,
-                            child: OutlinedButton(
-                              onPressed: () {},
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: TmsColors.red,
-                                side: const BorderSide(color: TmsColors.line),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(9.r),
-                                ),
-                              ),
-                              child: Text(
-                                'Cancel job',
-                                style: styles.bodyMedium.copyWith(
-                                  color: TmsColors.red,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
+                          SizedBox(height: 13.h),
+                          _detailCard(
+                            job,
+                            styles,
+                            vehicle: needsVehicle
+                                ? 'Awaiting vehicle'
+                                : vehicle,
+                            driver: needsVehicle ? 'Not assigned' : driver,
+                          ),
+                          SizedBox(height: 15.h),
+                          Text(
+                            'ACTIVITY',
+                            style: styles.labelSmall.copyWith(
+                              fontSize: 11.sp,
+                              letterSpacing: 1.4,
                             ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 9.h),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 14.w,
+                              vertical: 12.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Column(
+                              children: job.comments
+                                  .map(
+                                    (comment) => _activityRow(comment, styles),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    Container(
+                      padding: EdgeInsets.fromLTRB(18.w, 10.h, 18.w, 16.h),
+                      color: TmsColors.canvas,
+                      child: Column(
+                        children: [
+                          // if (needsVehicle) ...[
+                          //   TmsButton(
+                          //     label: 'Assign vehicle',
+                          //     onPressed: assignVehicle,
+                          //   ),
+                          //   SizedBox(height: 10.h),
+                          // ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TmsButton(
+                                  dark: true,
+                                  label: 'Edit',
+                                  onPressed: () => _showEditJobForm(
+                                    context,
+                                    styles,
+                                    workflowStatus.value,
+                                    arrival.value,
+                                    delivery.value,
+                                    (value) => workflowStatus.value = value,
+                                    (value) => arrival.value = value,
+                                    (value) => delivery.value = value,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 10.w),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 48.h,
+                                  child: OutlinedButton(
+                                    onPressed: () =>
+                                        _showCancelReasonPicker(context, styles),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: TmsColors.red,
+                                      side: const BorderSide(
+                                        color: TmsColors.line,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          9.r,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Cancel job',
+                                      style: styles.bodyMedium.copyWith(
+                                        color: TmsColors.red,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
   }
 }
+
+Widget _assignVehicleBanner(dynamic styles, {required VoidCallback onAssign}) =>
+    Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12.r),
+      child: InkWell(
+        onTap: onAssign,
+        borderRadius: BorderRadius.circular(12.r),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(14.w),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: const Color(0xFFF7DECF)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vehicle not assigned',
+                      style: styles.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13.sp,
+                      ),
+                    ),
+                    SizedBox(height: 3.h),
+                    Text(
+                      'Assign a vehicle and driver to continue this request.',
+                      style: styles.bodySmall.copyWith(fontSize: 11.sp),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  color: TmsColors.orange,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Text(
+                  'Assign',
+                  style: styles.labelSmall.copyWith(
+                    color: Colors.white,
+                    fontSize: 10.sp,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
 Widget _headerAction(BuildContext context, IconData icon, VoidCallback onTap) =>
     Material(
@@ -336,7 +447,12 @@ Widget _routeCard(
   ),
 );
 
-Widget _detailCard(TmsJob job, dynamic styles) => Container(
+Widget _detailCard(
+  TmsJob job,
+  dynamic styles, {
+  required String vehicle,
+  required String driver,
+}) => Container(
   decoration: BoxDecoration(
     color: Colors.white,
     borderRadius: BorderRadius.circular(12.r),
@@ -344,8 +460,8 @@ Widget _detailCard(TmsJob job, dynamic styles) => Container(
   child: Column(
     children: [
       _detailLine('Customer', job.customer, styles),
-      _detailLine('Vehicle', job.vehicle, styles),
-      _detailLine('Driver', job.driver, styles, isLast: true),
+      _detailLine('Vehicle', vehicle, styles),
+      _detailLine('Driver', driver, styles, isLast: true),
     ],
   ),
 );
@@ -482,6 +598,51 @@ Future<void> _showFlagPicker(BuildContext context, dynamic styles) {
   );
 }
 
+Future<void> _showCancelReasonPicker(BuildContext context, dynamic styles) {
+  return showModalBottomSheet(
+    context: context,
+    backgroundColor: TmsColors.canvas,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(18.w, 4.h, 18.w, 18.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('CANCEL WITH A REASON', style: styles.titleMedium),
+            SizedBox(height: 5.h),
+            Text(
+              'Select why this job request should be cancelled.',
+              style: styles.bodySmall,
+            ),
+            SizedBox(height: 12.h),
+            ...[
+              'Customer requested',
+              'Vehicle unavailable',
+              'Duplicate request',
+              'Schedule conflict',
+              'Other',
+            ].map(
+              (reason) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(reason, style: styles.bodyMedium),
+                trailing: const Icon(CupertinoIcons.chevron_right),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Job cancelled: $reason')),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 Future<void> _showStatusPicker(
   BuildContext context,
   dynamic styles,
@@ -564,56 +725,79 @@ Future<void> _showEditJobForm(
     return StatefulBuilder(
       builder: (context, setModalState) => SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(18.w, 4.h, 18.w, 18.h + MediaQuery.viewInsetsOf(context).bottom),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('EDIT JOB REQUEST', style: styles.titleLarge),
-            SizedBox(height: 4.h),
-            Text('Update the activity status and requested schedule.', style: styles.bodySmall),
-            SizedBox(height: 18.h),
-            Text('ACTIVITY STATUS', style: styles.labelSmall.copyWith(letterSpacing: 1.1)),
-            SizedBox(height: 7.h),
-            DropdownButtonFormField<String>(
-              value: status,
-              isExpanded: true,
-              decoration: _formDecoration(),
-              items: _workflowStatuses.map((item) => DropdownMenuItem(value: item, child: Text(item, style: styles.bodyMedium))).toList(),
-              onChanged: (value) => setModalState(() => status = value ?? status),
-            ),
-            SizedBox(height: 15.h),
-            Text('REQUESTED SCHEDULE', style: styles.labelSmall.copyWith(letterSpacing: 1.1)),
-            SizedBox(height: 7.h),
-            _dateField(
-              context,
-              styles,
-              'Arrival',
-              arrivalValue,
-              () async {
+          padding: EdgeInsets.fromLTRB(
+            18.w,
+            4.h,
+            18.w,
+            18.h + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('EDIT JOB REQUEST', style: styles.titleLarge),
+              SizedBox(height: 4.h),
+              Text(
+                'Update the activity status and requested schedule.',
+                style: styles.bodySmall,
+              ),
+              SizedBox(height: 18.h),
+              Text(
+                'ACTIVITY STATUS',
+                style: styles.labelSmall.copyWith(letterSpacing: 1.1),
+              ),
+              SizedBox(height: 7.h),
+              DropdownButtonFormField<String>(
+                value: status,
+                isExpanded: true,
+                decoration: _formDecoration(),
+                items: _workflowStatuses
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(item, style: styles.bodyMedium),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setModalState(() => status = value ?? status),
+              ),
+              SizedBox(height: 15.h),
+              Text(
+                'REQUESTED SCHEDULE',
+                style: styles.labelSmall.copyWith(letterSpacing: 1.1),
+              ),
+              SizedBox(height: 7.h),
+              _dateField(context, styles, 'Arrival', arrivalValue, () async {
                 final date = await _pickDate(context, 'REQUESTED ARRIVAL DATE');
-                if (date != null) setModalState(() => arrivalValue = _formatDate(date, '09:00'));
-              },
-            ),
-            SizedBox(height: 8.h),
-            _dateField(
-              context,
-              styles,
-              'Delivery',
-              deliveryValue,
-              () async {
-                final date = await _pickDate(context, 'REQUESTED DELIVERY DATE');
-                if (date != null) setModalState(() => deliveryValue = _formatDate(date, '16:30'));
-              },
-            ),
-            SizedBox(height: 20.h),
-            TmsButton(
-              label: 'Save changes',
-              onPressed: () {
-                onStatusChanged(status);
-                onArrivalChanged(arrivalValue);
-                onDeliveryChanged(deliveryValue);
-                Navigator.pop(sheetContext);
-              },
-            ),
-          ]),
+                if (date != null)
+                  setModalState(
+                    () => arrivalValue = _formatDate(date, '09:00'),
+                  );
+              }),
+              SizedBox(height: 8.h),
+              _dateField(context, styles, 'Delivery', deliveryValue, () async {
+                final date = await _pickDate(
+                  context,
+                  'REQUESTED DELIVERY DATE',
+                );
+                if (date != null)
+                  setModalState(
+                    () => deliveryValue = _formatDate(date, '16:30'),
+                  );
+              }),
+              SizedBox(height: 20.h),
+              TmsButton(
+                label: 'Save changes',
+                onPressed: () {
+                  onStatusChanged(status);
+                  onArrivalChanged(arrivalValue);
+                  onDeliveryChanged(deliveryValue);
+                  Navigator.pop(sheetContext);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -624,11 +808,23 @@ InputDecoration _formDecoration() => InputDecoration(
   filled: true,
   fillColor: Colors.white,
   contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
-  border: OutlineInputBorder(borderRadius: BorderRadius.circular(9.r), borderSide: const BorderSide(color: TmsColors.line)),
-  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(9.r), borderSide: const BorderSide(color: TmsColors.line)),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(9.r),
+    borderSide: const BorderSide(color: TmsColors.line),
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(9.r),
+    borderSide: const BorderSide(color: TmsColors.line),
+  ),
 );
 
-Widget _dateField(BuildContext context, dynamic styles, String label, String value, VoidCallback onTap) => Material(
+Widget _dateField(
+  BuildContext context,
+  dynamic styles,
+  String label,
+  String value,
+  VoidCallback onTap,
+) => Material(
   color: Colors.white,
   borderRadius: BorderRadius.circular(9.r),
   child: InkWell(
@@ -636,26 +832,45 @@ Widget _dateField(BuildContext context, dynamic styles, String label, String val
     onTap: onTap,
     child: Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
-      decoration: BoxDecoration(border: Border.all(color: TmsColors.line), borderRadius: BorderRadius.circular(9.r)),
-      child: Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label.toUpperCase(), style: styles.labelSmall.copyWith(fontSize: 9.sp)),
-          SizedBox(height: 3.h),
-          Text(value, style: styles.bodyMedium.copyWith(fontWeight: FontWeight.w800)),
-        ])),
-        const Icon(CupertinoIcons.calendar, color: TmsColors.muted),
-      ]),
+      decoration: BoxDecoration(
+        border: Border.all(color: TmsColors.line),
+        borderRadius: BorderRadius.circular(9.r),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: styles.labelSmall.copyWith(fontSize: 9.sp),
+                ),
+                SizedBox(height: 3.h),
+                Text(
+                  value,
+                  style: styles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(CupertinoIcons.calendar, color: TmsColors.muted),
+        ],
+      ),
     ),
   ),
 );
 
-Future<DateTime?> _pickDate(BuildContext context, String label) => showDatePicker(
-  context: context,
-  initialDate: DateTime(2026, 8, 6),
-  firstDate: DateTime(2026),
-  lastDate: DateTime(2027, 12),
-  helpText: label,
-);
+Future<DateTime?> _pickDate(BuildContext context, String label) =>
+    showDatePicker(
+      context: context,
+      initialDate: DateTime(2026, 8, 6),
+      firstDate: DateTime(2026),
+      lastDate: DateTime(2027, 12),
+      helpText: label,
+    );
 
 String _formatDate(DateTime date, String time) {
   const months = [
