@@ -10,11 +10,13 @@ class VehicleAssignmentResult {
     required this.vehicleType,
     required this.vehicle,
     required this.driver,
+    required this.driverHelper,
   });
 
   final String vehicleType;
   final String vehicle;
   final String driver;
+  final String driverHelper;
 }
 
 /// Shared assign-vehicle form used by new job request and job details.
@@ -23,6 +25,7 @@ Future<VehicleAssignmentResult?> showVehicleAssignmentSheet(
   String vehicleType = '',
   String vehicle = '',
   String driver = '',
+  String driverHelper = '',
   MockTmsRepository? repository,
 }) {
   final repo = repository ?? MockTmsRepository();
@@ -35,6 +38,7 @@ Future<VehicleAssignmentResult?> showVehicleAssignmentSheet(
       var typeValue = vehicleType.isEmpty ? 'Select vehicle type' : vehicleType;
       var vehicleValue = vehicle.isEmpty ? 'Select vehicle' : vehicle;
       var driverValue = driver.isEmpty ? 'Select driver' : driver;
+      var driverHelperValue = driverHelper;
 
       return StatefulBuilder(
         builder: (context, setModalState) {
@@ -61,6 +65,10 @@ Future<VehicleAssignmentResult?> showVehicleAssignmentSheet(
               }
               if (type == 'driver') {
                 driverValue = selected.title;
+                driverHelperValue = '';
+              }
+              if (type == 'driverHelper') {
+                driverHelperValue = selected.title;
               }
             });
           }
@@ -100,6 +108,16 @@ Future<VehicleAssignmentResult?> showVehicleAssignmentSheet(
                     value: driverValue,
                     onTap: () => pick('driver'),
                   ),
+                  if (driverValue != 'Select driver') ...[
+                    SizedBox(height: 8.h),
+                    SelectorTile(
+                      label: 'Driver helper (optional)',
+                      value: driverHelperValue.isEmpty
+                          ? 'Add driver helper'
+                          : driverHelperValue,
+                      onTap: () => pick('driverHelper'),
+                    ),
+                  ],
                   SizedBox(height: 18.h),
                   TmsButton(
                     label: 'Save assignment',
@@ -128,6 +146,7 @@ Future<VehicleAssignmentResult?> showVehicleAssignmentSheet(
                               : typeValue,
                           vehicle: vehicleValue,
                           driver: driverValue,
+                          driverHelper: driverHelperValue,
                         ),
                       );
                     },

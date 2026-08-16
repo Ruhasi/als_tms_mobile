@@ -146,76 +146,99 @@ Future<TmsOption?> showOptionSheet(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (context) {
+      var query = '';
       return DraggableScrollableSheet(
         initialChildSize: .8,
         minChildSize: .5,
         maxChildSize: .94,
-        builder: (_, controller) => Container(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-          decoration: const BoxDecoration(
-            color: TmsColors.canvas,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: TmsColors.line,
-                  borderRadius: BorderRadius.circular(99),
-                ),
+        builder: (_, controller) => StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = options.where((option) {
+              final needle = query.toLowerCase();
+              return option.title.toLowerCase().contains(needle) ||
+                  option.subtitle.toLowerCase().contains(needle);
+            }).toList();
+
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              decoration: const BoxDecoration(
+                color: TmsColors.canvas,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
               ),
-              const SizedBox(height: 18),
-              Row(
+              child: Column(
                 children: [
-                  Text(
-                    title.toUpperCase(),
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: TmsColors.line,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
                   ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Text(
+                        title.toUpperCase(),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                  CupertinoSearchTextField(
+                    onChanged: (value) => setModalState(() => query = value),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No locations found',
+                              style: TextStyle(color: TmsColors.muted),
+                            ),
+                          )
+                        : ListView.separated(
+                            controller: controller,
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, index) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (_, index) {
+                              final item = filtered[index];
+                              return Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(9),
+                                child: ListTile(
+                                  onTap: () => Navigator.pop(context, item),
+                                  title: Text(
+                                    item.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  subtitle: Text(item.subtitle),
+                                  trailing: item.isAuto
+                                      ? const Text(
+                                          'AUTO',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
+                                            color: TmsColors.orange,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
-              const CupertinoSearchTextField(),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView.separated(
-                  controller: controller,
-                  itemCount: options.length,
-                  separatorBuilder: (_, index) => const SizedBox(height: 8),
-                  itemBuilder: (_, index) {
-                    final item = options[index];
-                    return Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(9),
-                      child: ListTile(
-                        onTap: () => Navigator.pop(context, item),
-                        title: Text(
-                          item.title,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: Text(item.subtitle),
-                        trailing: item.isAuto
-                            ? const Text(
-                                'AUTO',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  color: TmsColors.orange,
-                                ),
-                              )
-                            : null,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       );
     },

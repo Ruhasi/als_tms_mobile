@@ -182,6 +182,18 @@ class MockTmsRepository {
           subtitle: 'Licence B1 · available',
         ),
       ],
+      'driverHelper': const [
+        TmsOption(
+          id: 'sil',
+          title: 'R. Silva',
+          subtitle: 'Driver helper · available',
+        ),
+        TmsOption(
+          id: 'fer',
+          title: 'M. Fernando',
+          subtitle: 'Driver helper · available',
+        ),
+      ],
     };
     return data[type] ?? const [];
   }
