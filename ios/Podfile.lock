@@ -1,0 +1,44 @@
+PODS:
+  - Flutter (1.0.0)
+  - flutter_secure_storage_darwin (10.0.0):
+    - Flutter
+    - FlutterMacOS
+  - recaptcha_enterprise_flutter (18.9.1):
+    - Flutter
+    - RecaptchaEnterprise (= 18.9.1)
+  - RecaptchaEnterprise (18.9.1):
+    - RecaptchaEnterpriseSDK (= 18.9.1)
+    - RecaptchaInterop (~> 101.0.0)
+  - RecaptchaEnterpriseSDK (18.9.1)
+  - RecaptchaInterop (101.0.0)
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - flutter_secure_storage_darwin (from `.symlinks/plugins/flutter_secure_storage_darwin/darwin`)
+  - recaptcha_enterprise_flutter (from `.symlinks/plugins/recaptcha_enterprise_flutter/ios`)
+
+SPEC REPOS:
+  trunk:
+    - RecaptchaEnterprise
+    - RecaptchaEnterpriseSDK
+    - RecaptchaInterop
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  flutter_secure_storage_darwin:
+    :path: ".symlinks/plugins/flutter_secure_storage_darwin/darwin"
+  recaptcha_enterprise_flutter:
+    :path: ".symlinks/plugins/recaptcha_enterprise_flutter/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_secure_storage_darwin: acdb3f316ed05a3e68f856e0353b133eec373a23
+  recaptcha_enterprise_flutter: f75b39ed54fb373490ea02ca3ef0512955bb4726
+  RecaptchaEnterprise: a28429a5366cc0f687ac5e93a44c5caa2c685aa9
+  RecaptchaEnterpriseSDK: 72239ea30c486d9093918c7b31eb85629eff1a50
+  RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+
+PODFILE CHECKSUM: ce2a4dd764e1c7aeed6a7cdc5e61d092b6dc6d32
+
+COCOAPODS: 1.16.2

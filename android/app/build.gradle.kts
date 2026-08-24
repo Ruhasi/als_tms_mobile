@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "lk.codevera.als_tms_mobile"
+    namespace = "com.asianlogisticssolutions.nexus360fleet.mobile"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -24,7 +24,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "lk.codevera.als_tms_mobile"
+        applicationId = "com.asianlogisticssolutions.nexus360fleet.mobile"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

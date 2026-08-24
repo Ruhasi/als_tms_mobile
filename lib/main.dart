@@ -12,7 +12,10 @@ void main() {
     ProviderScope(
       overrides: [
         appConfigProvider.overrideWithValue(
-          const AppConfig(apiBaseUrl: 'https://api.example.com'),
+          const AppConfig(
+            apiBaseUrl: 'http://139.59.239.245:9090',
+            enableNetworkLogs: true,
+          ),
         ),
       ],
       child: App(),

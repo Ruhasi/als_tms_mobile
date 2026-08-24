@@ -1,9 +1,15 @@
+import 'dart:developer';
+
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../application/app_state/app_state_notifier_provider.dart';
 import '../../application/core/providers.dart';
 import '../../domain/core/app_failure.dart';
+import '../auth/session_storage.dart';
+import '../auth/token_refresh_service.dart';
+import '../core/local_repository.dart';
 
 enum HttpMethod { get, post, put, patch, delete }
 
@@ -73,6 +79,7 @@ final class ApiClient {
         ),
       );
     } on Object catch (error, stackTrace) {
+      log('Unable to process the server response.', name: 'ApiClient', error: error, stackTrace: stackTrace);
       return ApiError(
         NetworkFailure(
           'Unable to process the server response.',
@@ -131,6 +138,9 @@ final class ApiClient {
 
 final dioProvider = Provider<Dio>((ref) {
   final config = ref.watch(appConfigProvider);
+  final sessionStorage = SessionStorage(
+    LocalRepository(const FlutterSecureStorage()),
+  );
   final dio = Dio(
     BaseOptions(
       baseUrl: config.apiBaseUrl,
@@ -139,19 +149,77 @@ final dioProvider = Provider<Dio>((ref) {
       headers: const {'Accept': 'application/json'},
     ),
   );
+  final tokenRefreshService = TokenRefreshService(dio, sessionStorage);
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) {
-        final token = ref.read(accessTokenProvider);
-        if (token != null && token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
+        if (options.extra['skipAuthToken'] != true) {
+          final token = ref.read(accessTokenProvider);
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
         }
         handler.next(options);
+      },
+      onError: (error, handler) async {
+        final request = error.requestOptions;
+        final isLoginRequest = request.path == '/api/mobile/login';
+        final wasRetried = request.extra['wasRetried'] == true;
+        final skipAuthRefresh = request.extra['skipAuthRefresh'] == true;
+        if (error.response?.statusCode != 401 ||
+            isLoginRequest ||
+            wasRetried ||
+            skipAuthRefresh) {
+          handler.next(error);
+          return;
+        }
+
+        try {
+          final accessToken = await tokenRefreshService.refreshAccessToken();
+          if (accessToken == null) {
+            ref.read(appStateNotifierProvider.notifier).clearSession();
+            handler.next(error);
+            return;
+          }
+
+          ref
+              .read(appStateNotifierProvider.notifier)
+              .setAccessToken(accessToken);
+          final response = await dio.fetch<Object?>(
+            request.copyWith(
+              headers: {
+                ...request.headers,
+                'Authorization': 'Bearer $accessToken',
+              },
+              extra: {...request.extra, 'wasRetried': true},
+            ),
+          );
+          handler.resolve(response);
+        } on Object catch (refreshError, refreshStackTrace) {
+          log(
+            'Access-token refresh failed.',
+            name: 'ApiClient',
+            error: refreshError,
+            stackTrace: refreshStackTrace,
+          );
+          await sessionStorage.clear();
+          ref.read(appStateNotifierProvider.notifier).clearSession();
+          handler.next(error);
+        }
       },
     ),
   );
   if (config.enableNetworkLogs) {
-    dio.interceptors.add(LogInterceptor(requestBody: true));
+    dio.interceptors.add(
+      LogInterceptor(
+        request: true,
+        requestHeader: false,
+        requestBody: true,
+        responseHeader: false,
+        responseBody: true,
+        error: true,
+      ),
+    );
   }
   return dio;
 });

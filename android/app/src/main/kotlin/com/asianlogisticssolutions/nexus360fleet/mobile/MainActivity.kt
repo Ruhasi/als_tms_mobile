@@ -1,4 +1,4 @@
-package lk.codevera.als_tms_mobile
+package com.asianlogisticssolutions.nexus360fleet.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
