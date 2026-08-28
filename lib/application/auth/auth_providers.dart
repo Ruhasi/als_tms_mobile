@@ -18,3 +18,7 @@ final authRepositoryProvider = Provider<AuthRepository>(
 final sessionStorageProvider = Provider<SessionStorage>(
   (ref) => SessionStorage(LocalRepository(const FlutterSecureStorage())),
 );
+
+final mobileUserProfileProvider = FutureProvider(
+  (ref) => ref.read(authRepositoryProvider).currentProfile(),
+);

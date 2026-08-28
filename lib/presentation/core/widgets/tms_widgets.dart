@@ -73,11 +73,13 @@ class SelectorTile extends StatelessWidget {
     required this.onTap,
     this.badge,
     this.locked = false,
+    this.hasError = false,
   });
   final String label, value;
   final VoidCallback? onTap;
   final String? badge;
   final bool locked;
+  final bool hasError;
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: locked ? null : onTap,
@@ -87,7 +89,7 @@ class SelectorTile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: TmsColors.line),
+        border: Border.all(color: hasError ? TmsColors.red : TmsColors.line),
         borderRadius: BorderRadius.circular(9),
       ),
       child: Row(

@@ -3,24 +3,61 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
-import 'package:flutter_template/presentation/features/tms/widgets/job_list_item.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:nexus_360/presentation/core/values/colors.dart';
 
-import '../../../../application/tms/tms_providers.dart';
-import '../../../../domain/tms/models/tms_models.dart';
+import '../../../../application/transport_booking/booking_lookup_providers.dart';
+import '../../../../domain/transport_booking/transport_booking.dart';
 import '../../../core/misc/text_style_provider.dart';
 import '../../../core/theme/tms_theme.dart';
 
-enum JobListFilter {
-  all,
-  open,
-  requested,
-  accepted,
-  inTransit,
-  delivered,
-  cancelled,
-  flagged,
+class JobStatusFilter {
+  const JobStatusFilter({
+    required this.id,
+    required this.name,
+    required this.color,
+  });
+
+  /// Database `current_status` value to send to the filter API.
+  final int? id;
+  final String name;
+  final Color color;
 }
+
+const _allStatusFilter = JobStatusFilter(
+  id: null,
+  name: 'All',
+  color: TmsColors.ink,
+);
+
+const _statusFilters = <JobStatusFilter>[
+  _allStatusFilter,
+  JobStatusFilter(
+    id: 1,
+    name: 'Pending for Approval',
+    color: Color(0xFFFFFFCC),
+  ),
+  JobStatusFilter(id: 2, name: 'Approved', color: Color(0xFFFF0000)),
+  JobStatusFilter(id: 3, name: 'Accepted', color: Color(0xFFFF9999)),
+  JobStatusFilter(id: 4, name: 'Attended', color: Color(0xFF00BFFF)),
+  JobStatusFilter(id: 5, name: 'Arrived At Pickup', color: Color(0xFFFFFF00)),
+  JobStatusFilter(
+    id: 6,
+    name: 'Departed From Pickup',
+    color: Color(0xFFFFCC00),
+  ),
+  JobStatusFilter(id: 7, name: 'Arrived at Delivery', color: Color(0xFF66FF00)),
+  JobStatusFilter(id: 8, name: 'Job Completed', color: Color(0xFF33CC33)),
+  JobStatusFilter(id: 9, name: 'Km Confirmed', color: Color(0xFF33CC33)),
+  JobStatusFilter(id: 10, name: 'Charged Submitted', color: Color(0xFF33CC33)),
+  JobStatusFilter(id: 11, name: 'Job Confirmed', color: Color(0xFF33CC33)),
+  JobStatusFilter(id: 12, name: 'Finance Confirmed', color: Color(0xFF33CC33)),
+  JobStatusFilter(id: 13, name: 'Job Closed', color: Color(0xFF33CC33)),
+  JobStatusFilter(id: 101, name: 'Cancelled', color: Color(0xFFFFEEEE)),
+  JobStatusFilter(id: 102, name: 'Rejected', color: Color(0xFFFFEEEE)),
+  JobStatusFilter(id: 103, name: 'Job Dispute', color: Color(0xFFFF0000)),
+  JobStatusFilter(id: 104, name: 'Finance Dispute', color: Color(0xFFFF0000)),
+];
 
 @RoutePage()
 class AllJobRequestsPage extends HookConsumerWidget {
@@ -37,126 +74,137 @@ class AllJobRequestsPage extends HookConsumerWidget {
     final styles = ref.read(textStyleProvider);
     final query = useState('');
     final selectedFilter = useState(_parseFilter(initialFilter));
-    final dashboard = ref.watch(dashboardProvider);
+    final bookingsResult = ref.watch(
+      transportBookingsProvider(selectedFilter.value.id),
+    );
 
-    return dashboard.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CupertinoActivityIndicator())),
-      error: (_, _) => const Scaffold(
-        body: Center(child: Text('Could not load job requests')),
-      ),
-      data: (data) {
-        final normalizedQuery = query.value.trim().toLowerCase();
-        final jobs = data.jobs.where((job) {
-          final matchesFilter = _matchesFilter(job, selectedFilter.value);
-          final matchesQuery =
-              normalizedQuery.isEmpty ||
-              job.id.toLowerCase().contains(normalizedQuery) ||
-              job.pickup.toLowerCase().contains(normalizedQuery) ||
-              job.destination.toLowerCase().contains(normalizedQuery) ||
-              job.customer.toLowerCase().contains(normalizedQuery);
-          return matchesFilter && matchesQuery;
-        }).toList();
+    final bookingPage = bookingsResult.asData?.value.fold(
+      (_) => null,
+      (page) => page,
+    );
+    final normalizedQuery = query.value.trim().toLowerCase();
+    final bookings =
+        bookingPage?.content.where((booking) {
+          return normalizedQuery.isEmpty ||
+              booking.bookingNo.toLowerCase().contains(normalizedQuery) ||
+              booking.customerReferenceNo.toLowerCase().contains(
+                normalizedQuery,
+              ) ||
+              booking.pickupLocationAddress.toLowerCase().contains(
+                normalizedQuery,
+              ) ||
+              booking.deliveryLocationAddress.toLowerCase().contains(
+                normalizedQuery,
+              );
+        }).toList() ??
+        const <TransportBooking>[];
 
-        return Scaffold(
-          backgroundColor: TmsColors.canvas,
-          body: SafeArea(
-            child: Column(
-              children: [
-                _pageHeader(context, styles),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 10.h),
-                  child: TextField(
-                    onChanged: (value) => query.value = value,
-                    style: styles.bodyMedium,
-                    decoration: InputDecoration(
-                      hintText: 'Search job requests',
-                      hintStyle: styles.bodySmall,
-                      prefixIcon: const Icon(
-                        CupertinoIcons.search,
-                        color: TmsColors.muted,
+    return Scaffold(
+      backgroundColor: TmsColors.canvas,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _pageHeader(context, styles),
+            Padding(
+              padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 10.h),
+              child: TextField(
+                onChanged: (value) => query.value = value,
+                style: styles.bodyMedium,
+                decoration: InputDecoration(
+                  hintText: 'Search job requests',
+                  hintStyle: styles.bodySmall,
+                  prefixIcon: const Icon(
+                    CupertinoIcons.search,
+                    color: TmsColors.muted,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(vertical: 13.h),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: const BorderSide(color: TmsColors.line),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: const BorderSide(color: TmsColors.orange),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 38.h,
+              child: ListView(
+                padding: EdgeInsets.symmetric(horizontal: 18.w),
+                scrollDirection: Axis.horizontal,
+                children: _statusFilters
+                    .map(
+                      (filter) => _statusTab(
+                        label: filter.name,
+                        selected: selectedFilter.value == filter,
+                        onTap: () => selectedFilter.value = filter,
+                        styles: styles,
+                        color: filter.color,
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: EdgeInsets.symmetric(vertical: 13.h),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                        borderSide: const BorderSide(color: TmsColors.line),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                        borderSide: const BorderSide(color: TmsColors.orange),
+                    )
+                    .toList(),
+              ),
+            ),
+            if (bookingsResult.isLoading)
+              Padding(
+                padding: EdgeInsets.only(top: 8.h),
+                child: CupertinoActivityIndicator(radius: 10.r),
+              )
+            else
+              SizedBox(height: 5.h),
+            Expanded(
+              child: bookingPage == null
+                  ? bookingsResult.isLoading
+                        ? const SizedBox.shrink()
+                        : _loadErrorState(styles)
+                  : bookings.isEmpty
+                  ? _emptyState(styles)
+                  : ListView.separated(
+                      padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 20.h),
+                      itemCount: bookings.length,
+                      separatorBuilder: (_, _) => SizedBox(height: 12.h),
+                      itemBuilder: (_, index) => _bookingListItem(
+                        booking: bookings[index],
+                        styles: styles,
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(
-                  height: 38.h,
-                  child: ListView(
-                    padding: EdgeInsets.symmetric(horizontal: 18.w),
-                    scrollDirection: Axis.horizontal,
-                    children: JobListFilter.values
-                        .map(
-                          (filter) => _statusTab(
-                            label: _filterLabel(filter),
-                            selected: selectedFilter.value == filter,
-                            onTap: () => selectedFilter.value = filter,
-                            styles: styles,
-                            color: _filterColor(filter),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-                SizedBox(height: 5.h),
-                Expanded(
-                  child: jobs.isEmpty
-                      ? _emptyState(styles)
-                      : ListView.separated(
-                          padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 20.h),
-                          itemCount: jobs.length,
-                          separatorBuilder: (_, _) => SizedBox(height: 12.h),
-                          itemBuilder: (_, index) =>
-                              JobListItem(job: jobs[index], styles: styles),
-                        ),
-                ),
-              ],
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
 
-JobListFilter _parseFilter(String? value) => switch (value?.toLowerCase()) {
-  'open' => JobListFilter.open,
-  'delivered' => JobListFilter.delivered,
-  'flagged' => JobListFilter.flagged,
-  'requested' => JobListFilter.requested,
-  'accepted' => JobListFilter.accepted,
-  'intransit' || 'in_transit' || 'in-transit' => JobListFilter.inTransit,
-  'cancelled' => JobListFilter.cancelled,
-  _ => JobListFilter.all,
-};
+JobStatusFilter _parseFilter(String? value) {
+  final filterId = int.tryParse(value ?? '');
+  if (filterId != null) {
+    return _statusFilters.firstWhere(
+      (filter) => filter.id == filterId,
+      orElse: () => _allStatusFilter,
+    );
+  }
 
-bool _matchesFilter(TmsJob job, JobListFilter filter) => switch (filter) {
-  JobListFilter.all => true,
-  JobListFilter.open =>
-    job.status == JobStatus.requested ||
-        job.status == JobStatus.accepted ||
-        job.status == JobStatus.inTransit,
-  JobListFilter.requested => job.status == JobStatus.requested,
-  JobListFilter.accepted => job.status == JobStatus.accepted,
-  JobListFilter.inTransit => job.status == JobStatus.inTransit,
-  JobListFilter.delivered => job.status == JobStatus.delivered,
-  JobListFilter.cancelled => job.status == JobStatus.cancelled,
-  JobListFilter.flagged => job.isFlagged,
-};
+  return switch (value?.toLowerCase()) {
+    'delivered' => _filterForId(8),
+    'requested' => _filterForId(1),
+    'accepted' => _filterForId(3),
+    'intransit' || 'in_transit' || 'in-transit' => _filterForId(6),
+    'cancelled' => _filterForId(101),
+    _ => _allStatusFilter,
+  };
+}
+
+JobStatusFilter _filterForId(int id) =>
+    _statusFilters.firstWhere((filter) => filter.id == id);
 
 Widget _pageHeader(BuildContext context, dynamic styles) => Padding(
   padding: EdgeInsets.fromLTRB(10.w, 9.h, 18.w, 5.h),
@@ -188,7 +236,7 @@ Widget _statusTab({
 }) => Padding(
   padding: EdgeInsets.only(right: 8.w),
   child: Material(
-    color: selected ? color : Colors.white,
+    color: selected ? TmsColors.orange : Colors.white,
     borderRadius: BorderRadius.circular(16.r),
     child: InkWell(
       onTap: onTap,
@@ -198,12 +246,12 @@ Widget _statusTab({
         padding: EdgeInsets.symmetric(horizontal: 14.w),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: selected ? color : TmsColors.line),
+          border: Border.all(color: TmsColors.line),
         ),
         child: Text(
           label,
           style: styles.labelSmall.copyWith(
-            color: selected ? Colors.white : color,
+            color: selected ? Colors.white : Colors.black,
             fontSize: 10.sp,
             letterSpacing: .55,
           ),
@@ -212,6 +260,98 @@ Widget _statusTab({
     ),
   ),
 );
+
+Widget _bookingListItem({
+  required TransportBooking booking,
+  required dynamic styles,
+}) {
+  final status = _statusFilters.firstWhere(
+    (filter) => filter.id == booking.currentStatus,
+    orElse: () => _allStatusFilter,
+  );
+  final pickup = _firstAddressLine(booking.pickupLocationAddress);
+  final delivery = _firstAddressLine(booking.deliveryLocationAddress);
+
+  return Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(18.r),
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  booking.bookingNo,
+                  style: styles.labelSmall.copyWith(
+                    fontSize: 12.sp,
+                    letterSpacing: 1.35,
+                  ),
+                ),
+              ),
+              _bookingStatusPill(status, styles),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Text(
+            pickup,
+            style: styles.bodyMedium.copyWith(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 10.h),
+          Text(
+            delivery,
+            style: styles.bodyMedium.copyWith(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Divider(height: 1, color: TmsColors.line),
+          SizedBox(height: 6.h),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  booking.requestedArrivalTime,
+                  style: styles.bodySmall.copyWith(fontSize: 10.sp),
+                ),
+              ),
+              Text(
+                booking.customerReferenceNo,
+                style: styles.bodySmall.copyWith(fontSize: 10.sp),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _bookingStatusPill(JobStatusFilter status, dynamic styles) => Container(
+  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+  decoration: BoxDecoration(
+    color: status.color.withValues(alpha: 0.7),
+    borderRadius: BorderRadius.circular(12.r),
+  ),
+  child: Text(
+    status.name,
+    style: styles.labelSmall.copyWith(fontSize: 9.sp, color: Colors.black),
+  ),
+);
+
+String _firstAddressLine(String address) {
+  final line = address
+      .split('\n')
+      .map((line) => line.trim())
+      .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+  return line.isEmpty ? 'Location unavailable' : line;
+}
 
 Widget _emptyState(dynamic styles) => Center(
   child: Padding(
@@ -241,23 +381,6 @@ Widget _emptyState(dynamic styles) => Center(
   ),
 );
 
-String _filterLabel(JobListFilter filter) => switch (filter) {
-  JobListFilter.all => 'All',
-  JobListFilter.open => 'Open',
-  JobListFilter.requested => 'Requested',
-  JobListFilter.accepted => 'Accepted',
-  JobListFilter.inTransit => 'In transit',
-  JobListFilter.delivered => 'Delivered',
-  JobListFilter.cancelled => 'Cancelled',
-  JobListFilter.flagged => 'Flagged',
-};
-
-Color _filterColor(JobListFilter filter) => switch (filter) {
-  JobListFilter.all => TmsColors.ink,
-  JobListFilter.open => TmsColors.ink,
-  JobListFilter.requested => TmsColors.gold,
-  JobListFilter.accepted || JobListFilter.inTransit => TmsColors.blue,
-  JobListFilter.delivered => TmsColors.green,
-  JobListFilter.cancelled => TmsColors.red,
-  JobListFilter.flagged => TmsColors.orange,
-};
+Widget _loadErrorState(dynamic styles) => Center(
+  child: Text('Could not load job requests', style: styles.bodyMedium),
+);

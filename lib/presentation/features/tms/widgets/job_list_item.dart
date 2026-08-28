@@ -1,11 +1,11 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
-import 'package:flutter_template/domain/tms/models/tms_models.dart';
-import 'package:flutter_template/presentation/core/routing/app_router.dart';
-import 'package:flutter_template/presentation/core/theme/tms_theme.dart';
-import 'package:flutter_template/presentation/core/widgets/tms_widgets.dart';
-import 'package:flutter_template/presentation/features/tms/widgets/vehicle_assignment_sheet.dart';
+import 'package:nexus_360/domain/tms/models/tms_models.dart';
+import 'package:nexus_360/presentation/core/routing/app_router.dart';
+import 'package:nexus_360/presentation/core/theme/tms_theme.dart';
+import 'package:nexus_360/presentation/core/widgets/tms_widgets.dart';
+import 'package:nexus_360/presentation/features/tms/widgets/vehicle_assignment_sheet.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class JobListItem extends ConsumerWidget {

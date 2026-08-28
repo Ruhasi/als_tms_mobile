@@ -1,9 +1,11 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
-import 'package:flutter_template/presentation/features/tms/widgets/job_list_item.dart';
+import 'package:nexus_360/presentation/features/tms/widgets/job_list_item.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../../../../application/app_state/app_state_notifier_provider.dart';
+import '../../../../application/auth/auth_providers.dart';
 import '../../../../application/tms/tms_providers.dart';
 import '../../../core/misc/text_style_provider.dart';
 import '../../../core/routing/app_router.dart';
@@ -20,6 +22,24 @@ class DashboardPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final styles = ref.read(textStyleProvider);
     final dashboard = ref.watch(dashboardProvider);
+    final profileResult = ref.watch(mobileUserProfileProvider);
+
+    ref.listen(mobileUserProfileProvider, (previous, next) {
+      next.whenData((result) {
+        result.fold(
+          (_) {},
+          (profile) => ref
+              .read(appStateNotifierProvider.notifier)
+              .setUserProfile(profile),
+        );
+      });
+    });
+
+    final profile = profileResult.when(
+      data: (result) => result.fold((_) => null, (value) => value),
+      loading: () => null,
+      error: (_, _) => null,
+    );
     return dashboard.when(
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -52,7 +72,9 @@ class DashboardPage extends ConsumerWidget {
                             ),
                             SizedBox(height: 4.h),
                             Text(
-                              data.user.name,
+                              profile?.username.isNotEmpty == true
+                                  ? profile!.companies.isNotEmpty ? profile.companies.first.name : profile.username
+                                  : data.user.name,
                               style: styles.headlineSmall.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
@@ -81,7 +103,9 @@ class DashboardPage extends ConsumerWidget {
                                   ),
                                   SizedBox(width: 6.w),
                                   Text(
-                                    'TRANSPORTER',
+                                    profile?.department.isNotEmpty == true
+                                        ? profile!.department
+                                        : 'TRANSPORTER',
                                     style: styles.labelSmall.copyWith(
                                       color: Colors.white.withValues(alpha: .8),
                                       letterSpacing: 1.2,
@@ -106,7 +130,11 @@ class DashboardPage extends ConsumerWidget {
                           ),
                         ),
                         child: Text(
-                          data.user.initials,
+                          _initials(
+                            profile?.username.isNotEmpty == true
+                                  ? profile!.companies.isNotEmpty ? profile.companies.first.name : profile.username
+                                  : data.user.name,
+                          ),
                           style: styles.titleMedium.copyWith(
                             color: const Color(0xFFC8CCD1),
                           ),
@@ -359,3 +387,8 @@ Widget _metric(
     ),
   ),
 );
+
+String _initials(String name) {
+  final words = name.trim().split(RegExp(r'\s+'));
+  return words.take(2).map((word) => word.isEmpty ? '' : word[0]).join();
+}

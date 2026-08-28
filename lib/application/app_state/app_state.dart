@@ -1,3 +1,5 @@
+import '../../domain/auth/mobile_user_profile.dart';
+
 /// The application-wide state that is independent of any feature.
 ///
 /// Keep this limited to session and display preferences. Feature-specific
@@ -6,12 +8,14 @@ class AppState {
   const AppState({
     this.isInitialized = false,
     this.accessToken,
+    this.userProfile,
     this.localeCode = 'en',
     this.themeMode = AppThemeMode.system,
   });
 
   final bool isInitialized;
   final String? accessToken;
+  final MobileUserProfile? userProfile;
   final String localeCode;
   final AppThemeMode themeMode;
 
@@ -20,6 +24,7 @@ class AppState {
   AppState copyWith({
     bool? isInitialized,
     Object? accessToken = _unset,
+    Object? userProfile = _unset,
     String? localeCode,
     AppThemeMode? themeMode,
   }) {
@@ -28,6 +33,9 @@ class AppState {
       accessToken: identical(accessToken, _unset)
           ? this.accessToken
           : accessToken as String?,
+      userProfile: identical(userProfile, _unset)
+          ? this.userProfile
+          : userProfile as MobileUserProfile?,
       localeCode: localeCode ?? this.localeCode,
       themeMode: themeMode ?? this.themeMode,
     );

@@ -5,11 +5,14 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../../application/tms/tms_providers.dart';
+import '../../../../application/transport_booking/booking_lookup_providers.dart';
 import '../../../../domain/tms/models/tms_models.dart';
-import '../../../../infrastructure/tms/mock_tms_repository.dart';
+import '../../../../domain/transport_booking/create_transport_booking_request.dart';
+import '../../../../domain/transport_booking/lookup_item.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/theme/tms_theme.dart';
 import '../../../core/widgets/tms_widgets.dart';
+import '../../../core/widgets/booking_lookup_sheet.dart';
 import '../widgets/vehicle_assignment_sheet.dart';
 
 @RoutePage()
@@ -18,22 +21,70 @@ class NewJobPage extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final lookups = ref.read(bookingLookupRepositoryProvider);
     final dropLocations = useState<List<_DropLocation>>(const []);
+    final customer = useState<LookupItem?>(null);
+    final invoiceTo = useState<LookupItem?>(null);
+    final shipper = useState<LookupItem?>(null);
+    final pickup = useState<LookupItem?>(null);
+    final destination = useState<LookupItem?>(null);
+    final customerItems = useState<List<LookupItem>>(const []);
+    final shipperItems = useState<List<LookupItem>>(const []);
+    final locationItems = useState<List<LookupItem>>(const []);
     final finalDestination = useState('');
     final vehicleType = useState('');
+    final vehicleTypeLookup = useState<LookupItem?>(null);
     final vehicle = useState('');
     final driver = useState('');
+    final paymentMode = useState<int?>(null);
+    final cashOrCredit = useState<int?>(null);
+    final invoiceStatus = useState<int?>(null);
+    final requestedArrival = useState<DateTime?>(null);
+    final requestedDelivery = useState<DateTime?>(null);
+    final comments = useTextEditingController();
+    final isSubmitting = useState(false);
+    final showValidationErrors = useState(false);
 
-    Future<void> select(String type) async {
-      final options = await ref.read(tmsRepositoryProvider).options(type);
-      if (!context.mounted) return;
-      final selected = await showOptionSheet(
+    Future<LookupItem?> lookup(
+      String title,
+      LookupSearch search,
+      List<LookupItem> initialItems,
+    ) async {
+      return showBookingLookupSheet(
         context,
-        title: type,
-        options: options,
+        title: title,
+        search: search,
+        initialItems: initialItems,
       );
-      if (selected == null) return;
     }
+
+    useEffect(() {
+      Future<void> preload() async {
+        final results = await Future.wait([
+          lookups.customers(''),
+          lookups.shippers(''),
+          lookups.locations(''),
+        ]);
+        if (!context.mounted) return;
+        results[0].fold((_) {}, (items) {
+          customerItems.value = items;
+          if (items.length == 1) {
+            customer.value = items.first;
+            invoiceTo.value = items.first;
+          }
+        });
+        results[1].fold((_) {}, (items) {
+          shipperItems.value = items;
+          if (items.length == 1) shipper.value = items.first;
+        });
+        results[2].fold((_) {}, (items) {
+          locationItems.value = items;
+        });
+      }
+
+      preload();
+      return null;
+    }, const []);
 
     Future<void> addDropLocation() async {
       final location = await showModalBottomSheet<_DropLocation>(
@@ -42,7 +93,8 @@ class NewJobPage extends HookConsumerWidget {
         backgroundColor: TmsColors.canvas,
         showDragHandle: true,
         builder: (_) => _AddDropLocationSheet(
-          repository: ref.read(tmsRepositoryProvider),
+          locationSearch: lookups.locations,
+          initialLocations: locationItems.value,
           selectedLocationIds: dropLocations.value
               .map((dropLocation) => dropLocation.location.id)
               .toSet(),
@@ -57,20 +109,6 @@ class NewJobPage extends HookConsumerWidget {
       dropLocations.value = dropLocations.value
           .where((dropLocation) => dropLocation != location)
           .toList();
-    }
-
-    Future<void> selectFinalDestination() async {
-      final destinations = await ref
-          .read(tmsRepositoryProvider)
-          .options('destination');
-      if (!context.mounted) return;
-      final selected = await showOptionSheet(
-        context,
-        title: 'Final destination',
-        options: destinations,
-      );
-      if (selected == null) return;
-      finalDestination.value = selected.title;
     }
 
     Future<void> assignVehicle() async {
@@ -117,32 +155,65 @@ class NewJobPage extends HookConsumerWidget {
                   _sectionLabel('PARTIES'),
                   SelectorTile(
                     label: 'Customer',
-                    value: 'Ceylon Biscuits Ltd',
-                    badge: 'OWN COMPANY',
-                    locked: true,
-                    onTap: null,
+                    value: customer.value?.name ?? 'Select customer',
+                    hasError:
+                        showValidationErrors.value && customer.value == null,
+                    onTap: () async {
+                      final selected = await lookup(
+                        'Customer',
+                        lookups.customers,
+                        customerItems.value,
+                      );
+                      if (selected == null) return;
+                      customer.value = selected;
+                      vehicleType.value = '';
+                      vehicleTypeLookup.value = null;
+                    },
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
                     label: 'Shipper',
-                    value: 'CBL Ranala Plant',
-                    badge: 'AUTO',
-                    onTap: () => select('shipper'),
+                    value: shipper.value?.name ?? 'Select shipper',
+                    hasError:
+                        showValidationErrors.value && shipper.value == null,
+                    onTap: () async {
+                      final selected = await lookup(
+                        'Shipper',
+                        lookups.shippers,
+                        shipperItems.value,
+                      );
+                      if (selected != null) shipper.value = selected;
+                    },
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
                     label: 'Invoice to',
-                    value: 'Ceylon Biscuits Ltd',
-                    badge: 'LOCKED',
-                    locked: true,
-                    onTap: null,
+                    value: invoiceTo.value?.name ?? 'Select invoice customer',
+                    hasError:
+                        showValidationErrors.value && invoiceTo.value == null,
+                    onTap: () async {
+                      final selected = await lookup(
+                        'Invoice to',
+                        lookups.customers,
+                        customerItems.value,
+                      );
+                      if (selected != null) invoiceTo.value = selected;
+                    },
                   ),
                   _sectionLabel('ROUTE'),
                   SelectorTile(
                     label: 'Pickup location',
-                    value: 'Colombo DC — Orugodawatta',
-                    badge: 'AUTO',
-                    onTap: () => select('pickup'),
+                    value: pickup.value?.name ?? 'Select pickup location',
+                    hasError:
+                        showValidationErrors.value && pickup.value == null,
+                    onTap: () async {
+                      final selected = await lookup(
+                        'Pickup location',
+                        lookups.locations,
+                        locationItems.value,
+                      );
+                      if (selected != null) pickup.value = selected;
+                    },
                   ),
                   const SizedBox(height: 12),
                   _DropLocationsField(
@@ -153,24 +224,136 @@ class NewJobPage extends HookConsumerWidget {
                   const SizedBox(height: 12),
                   SelectorTile(
                     label: 'Final destination',
-                    value: finalDestination.value.isEmpty
-                        ? 'Select final destination'
-                        : finalDestination.value,
-                    onTap: selectFinalDestination,
+                    value:
+                        destination.value?.name ??
+                        (finalDestination.value.isEmpty
+                            ? 'Select final destination'
+                            : finalDestination.value),
+                    hasError:
+                        showValidationErrors.value && destination.value == null,
+                    onTap: () async {
+                      final selected = await lookup(
+                        'Final destination',
+                        lookups.locations,
+                        locationItems.value,
+                      );
+                      if (selected != null) destination.value = selected;
+                    },
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
                     label: 'Requested arrival',
-                    value: '6 Aug, 09:00',
-                    onTap: () => select('arrival'),
+                    value: _dateTimeLabel(context, requestedArrival.value),
+                    hasError:
+                        showValidationErrors.value &&
+                        requestedArrival.value == null,
+                    onTap: () async {
+                      final value = await _showDateTimeWheel(
+                        context,
+                        initialDate: requestedArrival.value,
+                      );
+                      if (value != null) requestedArrival.value = value;
+                    },
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
                     label: 'Requested delivery',
-                    value: '6 Aug, 16:30',
-                    onTap: () => select('delivery'),
+                    value: _dateTimeLabel(context, requestedDelivery.value),
+                    hasError:
+                        showValidationErrors.value &&
+                        requestedDelivery.value == null,
+                    onTap: () async {
+                      final value = await _showDateTimeWheel(
+                        context,
+                        initialDate: requestedDelivery.value,
+                      );
+                      if (value != null) requestedDelivery.value = value;
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  SelectorTile(
+                    label: 'Payment mode',
+                    value: _paymentModeLabel(paymentMode.value),
+                    hasError:
+                        showValidationErrors.value && paymentMode.value == null,
+                    onTap: () async {
+                      final option = await showOptionSheet(
+                        context,
+                        title: 'Payment mode',
+                        options: _paymentModes,
+                      );
+                      if (option != null) {
+                        paymentMode.value = int.parse(option.id);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  SelectorTile(
+                    label: 'Cash or credit',
+                    value: _cashOrCreditLabel(cashOrCredit.value),
+                    hasError:
+                        showValidationErrors.value &&
+                        cashOrCredit.value == null,
+                    onTap: () async {
+                      final option = await showOptionSheet(
+                        context,
+                        title: 'Cash or credit',
+                        options: _cashOrCreditOptions,
+                      );
+                      if (option != null) {
+                        cashOrCredit.value = int.parse(option.id);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  SelectorTile(
+                    label: 'Invoice status',
+                    value: _invoiceStatusLabel(invoiceStatus.value),
+                    hasError:
+                        showValidationErrors.value &&
+                        invoiceStatus.value == null,
+                    onTap: () async {
+                      final option = await showOptionSheet(
+                        context,
+                        title: 'Invoice status',
+                        options: _invoiceStatusOptions,
+                      );
+                      if (option != null) {
+                        invoiceStatus.value = int.parse(option.id);
+                      }
+                    },
                   ),
                   _sectionLabel('VEHICLE & DRIVER (OPTIONAL)'),
+                  SelectorTile(
+                    label: 'Vehicle type',
+                    value: vehicleType.value.isEmpty
+                        ? 'Select vehicle type'
+                        : vehicleType.value,
+                    hasError:
+                        showValidationErrors.value &&
+                        vehicleTypeLookup.value == null,
+                    onTap: customer.value == null
+                        ? null
+                        : () async {
+                            final result = await lookups.vehicleTypes(
+                              customer.value!.seq,
+                            );
+                            final initialItems = result.fold(
+                              (_) => <LookupItem>[],
+                              (items) => items,
+                            );
+                            final selected = await lookup(
+                              'Vehicle type',
+                              (_) => lookups.vehicleTypes(customer.value!.seq),
+                              initialItems,
+                            );
+                            if (selected != null) {
+                              vehicleType.value = selected.name;
+                              vehicleTypeLookup.value = selected;
+                            }
+                          },
+                  ),
+                  const SizedBox(height: 8),
                   if (assigned) ...[
                     SelectorTile(
                       label: 'Vehicle type',
@@ -202,7 +385,8 @@ class NewJobPage extends HookConsumerWidget {
                   ] else
                     _optionalAssignCard(onTap: assignVehicle),
                   _sectionLabel('COMMENTS (OPTIONAL)'),
-                  const TextField(
+                  TextField(
+                    controller: comments,
                     maxLines: 5,
                     decoration: InputDecoration(
                       hintText:
@@ -231,8 +415,58 @@ class NewJobPage extends HookConsumerWidget {
             Padding(
               padding: const EdgeInsets.all(20),
               child: TmsButton(
-                label: 'Submit job request',
-                onPressed: () => context.router.replace(const DashboardRoute()),
+                label: isSubmitting.value
+                    ? 'Submitting...'
+                    : 'Submit job request',
+                onPressed: isSubmitting.value
+                    ? null
+                    : () async {
+                        if (customer.value == null ||
+                            shipper.value == null ||
+                            invoiceTo.value == null ||
+                            invoiceStatus.value == null ||
+                            vehicleTypeLookup.value == null ||
+                            pickup.value == null ||
+                            requestedArrival.value == null ||
+                            destination.value == null ||
+                            requestedDelivery.value == null ||
+                            paymentMode.value == null ||
+                            cashOrCredit.value == null) {
+                          showValidationErrors.value = true;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Complete all required fields.'),
+                            ),
+                          );
+                          return;
+                        }
+                        isSubmitting.value = true;
+                        final result = await lookups.createBooking(
+                          CreateTransportBookingRequest(
+                            customerSeq: customer.value!.seq,
+                            shipperSeq: shipper.value!.seq,
+                            invoiceCustomerSeq: invoiceTo.value!.seq,
+                            invoiceStatus: invoiceStatus.value!,
+                            vehicleTypeSeq: vehicleTypeLookup.value!.seq,
+                            pickupLocationSeq: pickup.value!.seq,
+                            requestedArrivalTime: requestedArrival.value!,
+                            deliveryLocationSeq: destination.value!.seq,
+                            requestedDeliveryTime: requestedDelivery.value!,
+                            paymentMode: paymentMode.value!,
+                            cashOrCredit: cashOrCredit.value!,
+                            comments: comments.text.trim(),
+                          ),
+                        );
+                        if (!context.mounted) return;
+                        isSubmitting.value = false;
+                        result.fold(
+                          (failure) =>
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(failure.message)),
+                              ),
+                          (_) => context.router.replace(const DashboardRoute()),
+                        );
+                      },
               ),
             ),
           ],
@@ -390,11 +624,13 @@ class _DropLocationsField extends StatelessWidget {
 
 class _AddDropLocationSheet extends StatefulWidget {
   const _AddDropLocationSheet({
-    required this.repository,
+    required this.locationSearch,
+    required this.initialLocations,
     required this.selectedLocationIds,
   });
 
-  final MockTmsRepository repository;
+  final LookupSearch locationSearch;
+  final List<LookupItem> initialLocations;
   final Set<String> selectedLocationIds;
 
   @override
@@ -407,17 +643,21 @@ class _AddDropLocationSheetState extends State<_AddDropLocationSheet> {
   TimeOfDay? _time;
 
   Future<void> _selectLocation() async {
-    final locations = await widget.repository.options('deliveryLocations');
-    if (!mounted) return;
-    final location = await showOptionSheet(
+    final selected = await showBookingLookupSheet(
       context,
       title: 'Drop location',
-      options: locations
-          .where((item) => !widget.selectedLocationIds.contains(item.id))
-          .toList(),
+      search: widget.locationSearch,
+      initialItems: widget.initialLocations,
     );
-    if (!mounted || location == null) return;
-    setState(() => _location = location);
+    if (!mounted || selected == null) return;
+    if (widget.selectedLocationIds.contains('${selected.seq}')) return;
+    setState(
+      () => _location = TmsOption(
+        id: '${selected.seq}',
+        title: selected.name,
+        subtitle: selected.code,
+      ),
+    );
   }
 
   Future<void> _selectDate() async {
@@ -516,6 +756,22 @@ Future<DateTime?> _showDateWheel(
     context: context,
     builder: (context) => _DateTimeWheel(
       mode: CupertinoDatePickerMode.date,
+      initialDateTime: selectedDate,
+      onChanged: (value) => selectedDate = value,
+      onDone: () => Navigator.pop(context, selectedDate),
+    ),
+  );
+}
+
+Future<DateTime?> _showDateTimeWheel(
+  BuildContext context, {
+  DateTime? initialDate,
+}) async {
+  var selectedDate = initialDate ?? DateTime.now();
+  return showCupertinoModalPopup<DateTime>(
+    context: context,
+    builder: (context) => _DateTimeWheel(
+      mode: CupertinoDatePickerMode.dateAndTime,
       initialDateTime: selectedDate,
       onChanged: (value) => selectedDate = value,
       onDone: () => Navigator.pop(context, selectedDate),
@@ -641,3 +897,37 @@ Widget _sectionLabel(String text) => Padding(
     ),
   ),
 );
+
+const _paymentModes = [
+  TmsOption(id: '0', title: 'Other', subtitle: ''),
+  TmsOption(id: '1', title: 'Monthly Commitment', subtitle: ''),
+  TmsOption(id: '2', title: 'KM Commitment', subtitle: ''),
+  TmsOption(id: '3', title: 'Point to Point', subtitle: ''),
+  TmsOption(id: '4', title: 'Cargo in Hand Km', subtitle: ''),
+  TmsOption(id: '5', title: 'Round Trip Km', subtitle: ''),
+  TmsOption(id: '6', title: 'Actual GPS Km', subtitle: ''),
+  TmsOption(id: '7', title: 'Meter Reading Km', subtitle: ''),
+];
+const _cashOrCreditOptions = [
+  TmsOption(id: '0', title: 'Cash', subtitle: ''),
+  TmsOption(id: '1', title: 'Credit', subtitle: ''),
+];
+const _invoiceStatusOptions = [
+  TmsOption(id: '0', title: 'No', subtitle: ''),
+  TmsOption(id: '1', title: 'Yes', subtitle: ''),
+];
+
+String _paymentModeLabel(int? value) =>
+    value == null ? 'Select payment mode' : _paymentModes[value].title;
+String _cashOrCreditLabel(int? value) =>
+    value == null ? 'Select cash or credit' : _cashOrCreditOptions[value].title;
+String _invoiceStatusLabel(int? value) => value == null
+    ? 'Select invoice status'
+    : _invoiceStatusOptions[value].title;
+
+String _dateTimeLabel(BuildContext context, DateTime? value) {
+  if (value == null) return 'Select date and time';
+  final localizations = MaterialLocalizations.of(context);
+  return '${localizations.formatMediumDate(value)} · '
+      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(value))}';
+}

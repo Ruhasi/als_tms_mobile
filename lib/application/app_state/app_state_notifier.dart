@@ -1,5 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../../domain/auth/mobile_user_profile.dart';
 import 'app_state.dart';
 
 /// Mutates only the small set of values that are truly global to the app.
@@ -15,8 +16,12 @@ final class AppStateNotifier extends Notifier<AppState> {
     state = state.copyWith(accessToken: token);
   }
 
+  void setUserProfile(MobileUserProfile profile) {
+    state = state.copyWith(userProfile: profile);
+  }
+
   void clearSession() {
-    state = state.copyWith(accessToken: null);
+    state = state.copyWith(accessToken: null, userProfile: null);
   }
 
   void setLocale(String localeCode) {
