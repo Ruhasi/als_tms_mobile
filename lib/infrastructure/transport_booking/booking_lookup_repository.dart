@@ -17,21 +17,41 @@ class BookingLookupRepository {
       _lookup('$_base/shippers', query);
   Future<Either<NetworkFailure, List<LookupItem>>> locations(String query) =>
       _lookup('$_base/locations', query);
+  Future<Either<NetworkFailure, List<LookupItem>>> departments() =>
+      _lookup('$_base/departments', '');
   Future<Either<NetworkFailure, List<LookupItem>>> vehicleTypes(
     int customerSeq,
   ) => _lookup('$_base/customers/$customerSeq/vehicle-types', '');
 
-  Future<Either<NetworkFailure, void>> createBooking(
+  Future<Either<NetworkFailure, int>> createBooking(
     CreateTransportBookingRequest request,
   ) async {
-    final result = await _api.request<void>(
+    final result = await _api.request<int>(
       path: '/api/v1/mobile/transport-bookings',
       method: HttpMethod.post,
       data: request.toJson(),
-      decode: (_) {},
+      decode: (json) {
+        final body = json as Map<String, dynamic>;
+        final data = body['data'];
+        final sequence = switch (data) {
+          Map<String, dynamic> data =>
+            data['transportBookingSeq'] ??
+                data['transport_booking_seq'] ??
+                data['seq'],
+          _ => data,
+        };
+        return switch (sequence) {
+          int value => value,
+          num value => value.toInt(),
+          String value when int.tryParse(value) != null => int.parse(value),
+          _ => throw const FormatException(
+            'The created booking ID was missing from the response.',
+          ),
+        };
+      },
     );
     return switch (result) {
-      ApiSuccess() => right(null),
+      ApiSuccess(data: final bookingSeq) => right(bookingSeq),
       ApiError(failure: final failure) => left(failure),
     };
   }

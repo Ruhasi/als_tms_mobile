@@ -6,6 +6,8 @@ import '../../domain/transport_booking/transport_booking.dart';
 import '../../infrastructure/api_helpers/api_client.dart';
 import '../../infrastructure/transport_booking/booking_lookup_repository.dart';
 import '../../infrastructure/transport_booking/transport_booking_repository.dart';
+import '../../infrastructure/transport_booking/vehicle_assignment_lookup_repository.dart';
+import '../../infrastructure/transport_booking/vehicle_assignment_repository.dart';
 
 final bookingLookupRepositoryProvider = Provider<BookingLookupRepository>(
   (ref) => BookingLookupRepository(ref.watch(apiClientProvider)),
@@ -14,6 +16,16 @@ final bookingLookupRepositoryProvider = Provider<BookingLookupRepository>(
 final transportBookingRepositoryProvider = Provider<TransportBookingRepository>(
   (ref) => TransportBookingRepository(ref.watch(apiClientProvider)),
 );
+
+final vehicleAssignmentLookupRepositoryProvider =
+    Provider<VehicleAssignmentLookupRepository>(
+      (ref) => VehicleAssignmentLookupRepository(ref.watch(apiClientProvider)),
+    );
+
+final vehicleAssignmentRepositoryProvider =
+    Provider<VehicleAssignmentRepository>(
+      (ref) => VehicleAssignmentRepository(ref.watch(apiClientProvider)),
+    );
 
 /// Retrieves the first pagination page for the currently selected status.
 ///
@@ -25,4 +37,11 @@ final transportBookingsProvider =
       (ref, currentStatus) => ref
           .watch(transportBookingRepositoryProvider)
           .getBookings(currentStatus: currentStatus),
+    );
+
+final transportBookingDetailProvider =
+    FutureProvider.family<Either<NetworkFailure, TransportBookingDetail>, int>(
+      (ref, transportBookingSeq) => ref
+          .watch(transportBookingRepositoryProvider)
+          .getBookingById(transportBookingSeq),
     );

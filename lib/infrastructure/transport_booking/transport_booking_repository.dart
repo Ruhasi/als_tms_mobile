@@ -23,7 +23,7 @@ class TransportBookingRepository {
     String? startDate,
     String? endDate,
     int page = 0,
-    int size = 20,
+    int size = 10,
   }) async {
     final queryParameters = <String, dynamic>{
       'companyProfileSeq': companyProfileSeq,
@@ -56,6 +56,41 @@ class TransportBookingRepository {
 
     return switch (result) {
       ApiSuccess(data: final bookings) => right(bookings),
+      ApiError(failure: final failure) => left(failure),
+    };
+  }
+
+  Future<Either<NetworkFailure, TransportBookingDetail>> getBookingById(
+    int transportBookingSeq,
+  ) async {
+    final result = await _api.request<TransportBookingDetail>(
+      path: '$_path/$transportBookingSeq',
+      decode: (json) {
+        final body = json as Map<String, dynamic>;
+        return TransportBookingDetail.fromJson(
+          body['data'] as Map<String, dynamic>,
+        );
+      },
+    );
+
+    return switch (result) {
+      ApiSuccess(data: final booking) => right(booking),
+      ApiError(failure: final failure) => left(failure),
+    };
+  }
+
+  Future<Either<NetworkFailure, void>> updateFlagStatus({
+    required int transportBookingSeq,
+    required bool isFlagged,
+  }) async {
+    final result = await _api.request<void>(
+      path: '$_path/$transportBookingSeq/flag',
+      method: HttpMethod.post,
+      data: {'flag': isFlagged ? 'Flag' : 'Resolved'},
+      decode: (_) {},
+    );
+    return switch (result) {
+      ApiSuccess() => right(null),
       ApiError(failure: final failure) => left(failure),
     };
   }

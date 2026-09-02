@@ -53,6 +53,7 @@ class AuthController extends AsyncNotifier<void> {
           }
 
           await ref.read(sessionStorageProvider).save(session);
+          log('session: ${session.accessToken}');
           ref
               .read(appStateNotifierProvider.notifier)
               .setAccessToken(session.accessToken);

@@ -19,5 +19,6 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: JobSummaryRoute.page),
     AutoRoute(page: WeeklyStatusRoute.page),
     AutoRoute(page: MonthlyStatusRoute.page),
+    AutoRoute(page: VehicleAssignmentRoute.page),
   ];
 }

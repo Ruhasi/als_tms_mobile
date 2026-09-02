@@ -5,4 +5,5 @@ export 'pages/job_summary_page.dart';
 export 'pages/monthly_status_page.dart';
 export 'pages/new_job_page.dart';
 export 'pages/sign_in_page.dart';
+export 'pages/vehicle_assignment_page.dart';
 export 'pages/weekly_status_page.dart';

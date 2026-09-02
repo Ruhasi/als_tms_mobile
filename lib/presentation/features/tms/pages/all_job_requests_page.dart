@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:nexus_360/presentation/core/values/colors.dart';
+import 'package:nexus_360/presentation/core/routing/app_router.dart';
+import 'package:nexus_360/presentation/features/tms/widgets/job_list_item.dart';
 
 import '../../../../application/transport_booking/booking_lookup_providers.dart';
 import '../../../../domain/transport_booking/transport_booking.dart';
@@ -74,17 +75,75 @@ class AllJobRequestsPage extends HookConsumerWidget {
     final styles = ref.read(textStyleProvider);
     final query = useState('');
     final selectedFilter = useState(_parseFilter(initialFilter));
-    final bookingsResult = ref.watch(
-      transportBookingsProvider(selectedFilter.value.id),
-    );
+    final bookingPage = useState<TransportBookingsPage?>(null);
+    final isLoading = useState(false);
+    final isLoadingMore = useState(false);
+    final loadError = useState<String?>(null);
+    final repository = ref.read(transportBookingRepositoryProvider);
 
-    final bookingPage = bookingsResult.asData?.value.fold(
-      (_) => null,
-      (page) => page,
-    );
+    Future<void> loadFirstPage(int? currentStatus) async {
+      isLoading.value = true;
+      isLoadingMore.value = false;
+      loadError.value = null;
+      final result = await repository.getBookings(currentStatus: currentStatus);
+      if (!context.mounted || selectedFilter.value.id != currentStatus) return;
+      isLoading.value = false;
+      result.fold((failure) {
+        bookingPage.value = null;
+        loadError.value = failure.message;
+      }, (page) => bookingPage.value = page);
+    }
+
+    Future<void> loadNextPage() async {
+      final currentPage = bookingPage.value;
+      final currentStatus = selectedFilter.value.id;
+      if (currentPage == null ||
+          isLoading.value ||
+          isLoadingMore.value ||
+          currentPage.page + 1 >= currentPage.totalPages) {
+        return;
+      }
+
+      isLoadingMore.value = true;
+      final result = await repository.getBookings(
+        currentStatus: currentStatus,
+        page: currentPage.page + 1,
+        size: currentPage.size,
+      );
+      if (!context.mounted || selectedFilter.value.id != currentStatus) return;
+      isLoadingMore.value = false;
+      result.fold(
+        (failure) => ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message))),
+        (nextPage) {
+          final existing = currentPage.content
+              .map((booking) => booking.transportBookingSeq)
+              .toSet();
+          bookingPage.value = TransportBookingsPage(
+            content: [
+              ...currentPage.content,
+              ...nextPage.content.where(
+                (booking) => existing.add(booking.transportBookingSeq),
+              ),
+            ],
+            page: nextPage.page,
+            size: nextPage.size,
+            totalElements: nextPage.totalElements,
+            totalPages: nextPage.totalPages,
+          );
+        },
+      );
+    }
+
+    useEffect(() {
+      loadFirstPage(selectedFilter.value.id);
+      return null;
+    }, [selectedFilter.value.id]);
+
     final normalizedQuery = query.value.trim().toLowerCase();
     final bookings =
-        bookingPage?.content.where((booking) {
+        bookingPage.value?.content.where((booking) {
           return normalizedQuery.isEmpty ||
               booking.bookingNo.toLowerCase().contains(normalizedQuery) ||
               booking.customerReferenceNo.toLowerCase().contains(
@@ -153,7 +212,7 @@ class AllJobRequestsPage extends HookConsumerWidget {
                     .toList(),
               ),
             ),
-            if (bookingsResult.isLoading)
+            if (isLoading.value)
               Padding(
                 padding: EdgeInsets.only(top: 8.h),
                 child: CupertinoActivityIndicator(radius: 10.r),
@@ -161,19 +220,43 @@ class AllJobRequestsPage extends HookConsumerWidget {
             else
               SizedBox(height: 5.h),
             Expanded(
-              child: bookingPage == null
-                  ? bookingsResult.isLoading
+              child: bookingPage.value == null
+                  ? isLoading.value
                         ? const SizedBox.shrink()
-                        : _loadErrorState(styles)
+                        : _loadErrorState(styles, loadError.value)
                   : bookings.isEmpty
                   ? _emptyState(styles)
-                  : ListView.separated(
-                      padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 20.h),
-                      itemCount: bookings.length,
-                      separatorBuilder: (_, _) => SizedBox(height: 12.h),
-                      itemBuilder: (_, index) => _bookingListItem(
-                        booking: bookings[index],
-                        styles: styles,
+                  : NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification.metrics.extentAfter < 240) {
+                          loadNextPage();
+                        }
+                        return false;
+                      },
+                      child: ListView.separated(
+                        padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 20.h),
+                        itemCount:
+                            bookings.length + (isLoadingMore.value ? 1 : 0),
+                        separatorBuilder: (_, _) => SizedBox(height: 12.h),
+                        itemBuilder: (_, index) {
+                          if (index == bookings.length) {
+                            return Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.h),
+                              child: const Center(
+                                child: CupertinoActivityIndicator(),
+                              ),
+                            );
+                          }
+                          return TransportBookingListItem(
+                            booking: bookings[index],
+                            styles: styles,
+                            onTap: () => context.router.push(
+                              JobDetailRoute(
+                                jobId: bookings[index].transportBookingSeq,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
             ),
@@ -261,98 +344,6 @@ Widget _statusTab({
   ),
 );
 
-Widget _bookingListItem({
-  required TransportBooking booking,
-  required dynamic styles,
-}) {
-  final status = _statusFilters.firstWhere(
-    (filter) => filter.id == booking.currentStatus,
-    orElse: () => _allStatusFilter,
-  );
-  final pickup = _firstAddressLine(booking.pickupLocationAddress);
-  final delivery = _firstAddressLine(booking.deliveryLocationAddress);
-
-  return Material(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(18.r),
-    child: Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  booking.bookingNo,
-                  style: styles.labelSmall.copyWith(
-                    fontSize: 12.sp,
-                    letterSpacing: 1.35,
-                  ),
-                ),
-              ),
-              _bookingStatusPill(status, styles),
-            ],
-          ),
-          SizedBox(height: 10.h),
-          Text(
-            pickup,
-            style: styles.bodyMedium.copyWith(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(height: 10.h),
-          Text(
-            delivery,
-            style: styles.bodyMedium.copyWith(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(height: 8.h),
-          Divider(height: 1, color: TmsColors.line),
-          SizedBox(height: 6.h),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  booking.requestedArrivalTime,
-                  style: styles.bodySmall.copyWith(fontSize: 10.sp),
-                ),
-              ),
-              Text(
-                booking.customerReferenceNo,
-                style: styles.bodySmall.copyWith(fontSize: 10.sp),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-Widget _bookingStatusPill(JobStatusFilter status, dynamic styles) => Container(
-  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-  decoration: BoxDecoration(
-    color: status.color.withValues(alpha: 0.7),
-    borderRadius: BorderRadius.circular(12.r),
-  ),
-  child: Text(
-    status.name,
-    style: styles.labelSmall.copyWith(fontSize: 9.sp, color: Colors.black),
-  ),
-);
-
-String _firstAddressLine(String address) {
-  final line = address
-      .split('\n')
-      .map((line) => line.trim())
-      .firstWhere((line) => line.isNotEmpty, orElse: () => '');
-  return line.isEmpty ? 'Location unavailable' : line;
-}
-
 Widget _emptyState(dynamic styles) => Center(
   child: Padding(
     padding: EdgeInsets.all(32.w),
@@ -381,6 +372,9 @@ Widget _emptyState(dynamic styles) => Center(
   ),
 );
 
-Widget _loadErrorState(dynamic styles) => Center(
-  child: Text('Could not load job requests', style: styles.bodyMedium),
+Widget _loadErrorState(dynamic styles, String? message) => Center(
+  child: Text(
+    message ?? 'Could not load job requests',
+    style: styles.bodyMedium,
+  ),
 );

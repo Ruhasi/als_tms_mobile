@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-import '../../../../application/tms/tms_providers.dart';
+import '../../../../application/dashboard/mobile_dashboard_providers.dart';
 import '../../../../application/transport_booking/booking_lookup_providers.dart';
 import '../../../../domain/tms/models/tms_models.dart';
 import '../../../../domain/transport_booking/create_transport_booking_request.dart';
@@ -24,11 +24,13 @@ class NewJobPage extends HookConsumerWidget {
     final lookups = ref.read(bookingLookupRepositoryProvider);
     final dropLocations = useState<List<_DropLocation>>(const []);
     final customer = useState<LookupItem?>(null);
+    final department = useState<LookupItem?>(null);
     final invoiceTo = useState<LookupItem?>(null);
     final shipper = useState<LookupItem?>(null);
     final pickup = useState<LookupItem?>(null);
     final destination = useState<LookupItem?>(null);
     final customerItems = useState<List<LookupItem>>(const []);
+    final departmentItems = useState<List<LookupItem>>(const []);
     final shipperItems = useState<List<LookupItem>>(const []);
     final locationItems = useState<List<LookupItem>>(const []);
     final finalDestination = useState('');
@@ -61,23 +63,28 @@ class NewJobPage extends HookConsumerWidget {
     useEffect(() {
       Future<void> preload() async {
         final results = await Future.wait([
+          lookups.departments(),
           lookups.customers(''),
           lookups.shippers(''),
           lookups.locations(''),
         ]);
         if (!context.mounted) return;
         results[0].fold((_) {}, (items) {
+          departmentItems.value = items;
+          if (items.length == 1) department.value = items.first;
+        });
+        results[1].fold((_) {}, (items) {
           customerItems.value = items;
           if (items.length == 1) {
             customer.value = items.first;
             invoiceTo.value = items.first;
           }
         });
-        results[1].fold((_) {}, (items) {
+        results[2].fold((_) {}, (items) {
           shipperItems.value = items;
           if (items.length == 1) shipper.value = items.first;
         });
-        results[2].fold((_) {}, (items) {
+        results[3].fold((_) {}, (items) {
           locationItems.value = items;
         });
       }
@@ -112,12 +119,13 @@ class NewJobPage extends HookConsumerWidget {
     }
 
     Future<void> assignVehicle() async {
-      final result = await showVehicleAssignmentSheet(
-        context,
-        vehicleType: vehicleType.value,
-        vehicle: vehicle.value,
-        driver: driver.value,
-        repository: ref.read(tmsRepositoryProvider),
+      final result = await context.router.push<VehicleAssignmentResult>(
+        VehicleAssignmentRoute(
+          customerSeq: customer.value?.seq,
+          vehicleType: vehicleType.value,
+          vehicle: vehicle.value,
+          driver: driver.value,
+        ),
       );
       if (result == null) return;
       vehicleType.value = result.vehicleType;
@@ -153,6 +161,21 @@ class NewJobPage extends HookConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
                   _sectionLabel('PARTIES'),
+                  SelectorTile(
+                    label: 'Department',
+                    value: department.value?.name ?? 'Select department',
+                    hasError:
+                        showValidationErrors.value && department.value == null,
+                    onTap: () async {
+                      final selected = await lookup(
+                        'Department',
+                        (_) => lookups.departments(),
+                        departmentItems.value,
+                      );
+                      if (selected != null) department.value = selected;
+                    },
+                  ),
+                  const SizedBox(height: 8),
                   SelectorTile(
                     label: 'Customer',
                     value: customer.value?.name ?? 'Select customer',
@@ -215,12 +238,12 @@ class NewJobPage extends HookConsumerWidget {
                       if (selected != null) pickup.value = selected;
                     },
                   ),
-                  const SizedBox(height: 12),
-                  _DropLocationsField(
-                    locations: dropLocations.value,
-                    onAdd: addDropLocation,
-                    onRemove: removeDropLocation,
-                  ),
+                  // const SizedBox(height: 12),
+                  // _DropLocationsField(
+                  //   locations: dropLocations.value,
+                  //   onAdd: addDropLocation,
+                  //   onRemove: removeDropLocation,
+                  // ),
                   const SizedBox(height: 12),
                   SelectorTile(
                     label: 'Final destination',
@@ -422,6 +445,7 @@ class NewJobPage extends HookConsumerWidget {
                     ? null
                     : () async {
                         if (customer.value == null ||
+                            department.value == null ||
                             shipper.value == null ||
                             invoiceTo.value == null ||
                             invoiceStatus.value == null ||
@@ -443,14 +467,17 @@ class NewJobPage extends HookConsumerWidget {
                         isSubmitting.value = true;
                         final result = await lookups.createBooking(
                           CreateTransportBookingRequest(
+                            departmentSeq: department.value!.seq,
                             customerSeq: customer.value!.seq,
                             shipperSeq: shipper.value!.seq,
                             invoiceCustomerSeq: invoiceTo.value!.seq,
                             invoiceStatus: invoiceStatus.value!,
                             vehicleTypeSeq: vehicleTypeLookup.value!.seq,
                             pickupLocationSeq: pickup.value!.seq,
+                            pickupLocationAddress: pickup.value!.name,
                             requestedArrivalTime: requestedArrival.value!,
                             deliveryLocationSeq: destination.value!.seq,
+                            deliveryLocationAddress: destination.value!.name,
                             requestedDeliveryTime: requestedDelivery.value!,
                             paymentMode: paymentMode.value!,
                             cashOrCredit: cashOrCredit.value!,
@@ -464,7 +491,29 @@ class NewJobPage extends HookConsumerWidget {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text(failure.message)),
                               ),
-                          (_) => context.router.replace(const DashboardRoute()),
+                          (bookingSeq) async {
+                            ref.invalidate(transportBookingsProvider);
+                            ref.invalidate(mobileDashboardProvider);
+                            await showDialog<void>(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Job request created'),
+                                content: Text(
+                                  'Transport booking #$bookingSeq was created successfully.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (!context.mounted) return;
+                            context.router.replace(const DashboardRoute());
+                          },
                         );
                       },
               ),

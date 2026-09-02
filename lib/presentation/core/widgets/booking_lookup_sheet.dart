@@ -16,6 +16,7 @@ Future<LookupItem?> showBookingLookupSheet(
   required String title,
   required LookupSearch search,
   required List<LookupItem> initialItems,
+  bool searchLocally = false,
 }) {
   return showModalBottomSheet<LookupItem>(
     context: context,
@@ -26,6 +27,7 @@ Future<LookupItem?> showBookingLookupSheet(
       title: title,
       search: search,
       initialItems: initialItems,
+      searchLocally: searchLocally,
     ),
   );
 }
@@ -35,10 +37,12 @@ class _BookingLookupSheet extends StatefulWidget {
     required this.title,
     required this.search,
     required this.initialItems,
+    required this.searchLocally,
   });
   final String title;
   final LookupSearch search;
   final List<LookupItem> initialItems;
+  final bool searchLocally;
   @override
   State<_BookingLookupSheet> createState() => _BookingLookupSheetState();
 }
@@ -105,6 +109,22 @@ class _BookingLookupSheetState extends State<_BookingLookupSheet> {
             CupertinoSearchTextField(
               onChanged: (value) {
                 _debounce?.cancel();
+                if (widget.searchLocally) {
+                  final query = value.trim().toLowerCase();
+                  setState(() {
+                    _error = null;
+                    _items = query.isEmpty
+                        ? widget.initialItems
+                        : widget.initialItems
+                              .where(
+                                (item) =>
+                                    item.name.toLowerCase().contains(query) ||
+                                    item.code.toLowerCase().contains(query),
+                              )
+                              .toList();
+                  });
+                  return;
+                }
                 if (value.trim().length < 3) {
                   setState(() => _items = widget.initialItems);
                   return;

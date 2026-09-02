@@ -11,12 +11,30 @@ class VehicleAssignmentResult {
     required this.vehicle,
     required this.driver,
     required this.driverHelper,
+    this.secondaryDriver = '',
+    this.secondaryHelper = '',
+    this.trailer = '',
+    this.transportCompanySeq,
+    this.vehicleSeq,
+    this.driverSeq,
+    this.helperSeq,
+    this.trailerSeq,
+    this.payableVehicleTypeSeq,
   });
 
   final String vehicleType;
   final String vehicle;
   final String driver;
   final String driverHelper;
+  final String secondaryDriver;
+  final String secondaryHelper;
+  final String trailer;
+  final int? transportCompanySeq;
+  final int? vehicleSeq;
+  final int? driverSeq;
+  final int? helperSeq;
+  final int? trailerSeq;
+  final int? payableVehicleTypeSeq;
 }
 
 /// Shared assign-vehicle form used by new job request and job details.

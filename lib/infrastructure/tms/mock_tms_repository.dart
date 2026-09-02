@@ -95,8 +95,8 @@ class MockTmsRepository {
     );
   }
 
-  Future<TmsJob> job(String id) async =>
-      _jobs.firstWhere((item) => item.id == id);
+  /// Job details remain mocked until the live job-detail endpoint is available.
+  Future<TmsJob> job(int _) async => _jobs.first;
   Future<List<TmsOption>> options(String type) async {
     final data = <String, List<TmsOption>>{
       'destination': const [

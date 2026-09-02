@@ -85,16 +85,13 @@ class DashboardRoute extends PageRouteInfo<void> {
 /// generated route for
 /// [JobDetailPage]
 class JobDetailRoute extends PageRouteInfo<JobDetailRouteArgs> {
-  JobDetailRoute({
-    Key? key,
-    required String jobId,
-    List<PageRouteInfo>? children,
-  }) : super(
-         JobDetailRoute.name,
-         args: JobDetailRouteArgs(key: key, jobId: jobId),
-         rawPathParams: {'jobId': jobId},
-         initialChildren: children,
-       );
+  JobDetailRoute({Key? key, required int jobId, List<PageRouteInfo>? children})
+    : super(
+        JobDetailRoute.name,
+        args: JobDetailRouteArgs(key: key, jobId: jobId),
+        rawPathParams: {'jobId': jobId},
+        initialChildren: children,
+      );
 
   static const String name = 'JobDetailRoute';
 
@@ -103,7 +100,7 @@ class JobDetailRoute extends PageRouteInfo<JobDetailRouteArgs> {
     builder: (data) {
       final pathParams = data.inheritedPathParams;
       final args = data.argsAs<JobDetailRouteArgs>(
-        orElse: () => JobDetailRouteArgs(jobId: pathParams.getString('jobId')),
+        orElse: () => JobDetailRouteArgs(jobId: pathParams.getInt('jobId')),
       );
       return JobDetailPage(key: args.key, jobId: args.jobId);
     },
@@ -115,7 +112,7 @@ class JobDetailRouteArgs {
 
   final Key? key;
 
-  final String jobId;
+  final int jobId;
 
   @override
   String toString() {
@@ -195,6 +192,99 @@ class SignInRoute extends PageRouteInfo<void> {
       return const SignInPage();
     },
   );
+}
+
+/// generated route for
+/// [VehicleAssignmentPage]
+class VehicleAssignmentRoute extends PageRouteInfo<VehicleAssignmentRouteArgs> {
+  VehicleAssignmentRoute({
+    Key? key,
+    int? customerSeq,
+    String vehicleType = '',
+    String vehicle = '',
+    String driver = '',
+    String driverHelper = '',
+    List<PageRouteInfo>? children,
+  }) : super(
+         VehicleAssignmentRoute.name,
+         args: VehicleAssignmentRouteArgs(
+           key: key,
+           customerSeq: customerSeq,
+           vehicleType: vehicleType,
+           vehicle: vehicle,
+           driver: driver,
+           driverHelper: driverHelper,
+         ),
+         initialChildren: children,
+       );
+
+  static const String name = 'VehicleAssignmentRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<VehicleAssignmentRouteArgs>(
+        orElse: () => const VehicleAssignmentRouteArgs(),
+      );
+      return VehicleAssignmentPage(
+        key: args.key,
+        customerSeq: args.customerSeq,
+        vehicleType: args.vehicleType,
+        vehicle: args.vehicle,
+        driver: args.driver,
+        driverHelper: args.driverHelper,
+      );
+    },
+  );
+}
+
+class VehicleAssignmentRouteArgs {
+  const VehicleAssignmentRouteArgs({
+    this.key,
+    this.customerSeq,
+    this.vehicleType = '',
+    this.vehicle = '',
+    this.driver = '',
+    this.driverHelper = '',
+  });
+
+  final Key? key;
+
+  final int? customerSeq;
+
+  final String vehicleType;
+
+  final String vehicle;
+
+  final String driver;
+
+  final String driverHelper;
+
+  @override
+  String toString() {
+    return 'VehicleAssignmentRouteArgs{key: $key, customerSeq: $customerSeq, vehicleType: $vehicleType, vehicle: $vehicle, driver: $driver, driverHelper: $driverHelper}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! VehicleAssignmentRouteArgs) return false;
+    return key == other.key &&
+        customerSeq == other.customerSeq &&
+        vehicleType == other.vehicleType &&
+        vehicle == other.vehicle &&
+        driver == other.driver &&
+        driverHelper == other.driverHelper;
+  }
+
+  @override
+  int get hashCode =>
+      key.hashCode ^
+      customerSeq.hashCode ^
+      vehicleType.hashCode ^
+      vehicle.hashCode ^
+      driver.hashCode ^
+      driverHelper.hashCode;
 }
 
 /// generated route for

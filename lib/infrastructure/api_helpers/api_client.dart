@@ -79,7 +79,12 @@ final class ApiClient {
         ),
       );
     } on Object catch (error, stackTrace) {
-      log('Unable to process the server response.', name: 'ApiClient', error: error, stackTrace: stackTrace);
+      log(
+        'Unable to process the server response.',
+        name: 'ApiClient',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return ApiError(
         NetworkFailure(
           'Unable to process the server response.',
@@ -163,7 +168,7 @@ final dioProvider = Provider<Dio>((ref) {
       },
       onError: (error, handler) async {
         final request = error.requestOptions;
-        final isLoginRequest = request.path == '/api/mobile/login';
+        final isLoginRequest = request.path == '/api/v1/mobile/login';
         final wasRetried = request.extra['wasRetried'] == true;
         final skipAuthRefresh = request.extra['skipAuthRefresh'] == true;
         if (error.response?.statusCode != 401 ||

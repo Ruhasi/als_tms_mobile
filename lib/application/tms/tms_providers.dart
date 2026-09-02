@@ -11,7 +11,7 @@ final dashboardProvider = FutureProvider<DashboardData>(
   (ref) => ref.watch(tmsRepositoryProvider).dashboard(),
 );
 
-final jobProvider = FutureProvider.family<TmsJob, String>(
+final jobProvider = FutureProvider.family<TmsJob, int>(
   (ref, id) => ref.watch(tmsRepositoryProvider).job(id),
 );
 
