@@ -5,27 +5,35 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTextStyles {
   AppTextStyles();
 
-  TextStyle get bold28 => TextStyle(
+  TextStyle get bold28 => GoogleFonts.inter(
     fontSize: 28.sp,
     fontWeight: FontWeight.w900,
     color: Colors.white,
   );
 
-  TextStyle get displaySmall => GoogleFonts.playfairDisplay(
+  TextStyle get displaySmall => GoogleFonts.inter(
     fontSize: 36.sp,
     height: 1.1,
     fontWeight: FontWeight.w800,
     color: const Color(0xFF12151B),
   );
 
-  TextStyle get headlineSmall => GoogleFonts.playfairDisplay(
+  TextStyle get headlineSmall => GoogleFonts.inter(
     fontSize: 24.sp,
     height: 1.2,
     fontWeight: FontWeight.w800,
     color: const Color(0xFF12151B),
   );
 
-  TextStyle get titleLarge => GoogleFonts.playfairDisplay(
+
+  TextStyle get headlineSmall20 => GoogleFonts.inter(
+    fontSize: 20.sp,
+    height: 1.2,
+    fontWeight: FontWeight.w800,
+    color: const Color(0xFF12151B),
+  );
+
+  TextStyle get titleLarge => GoogleFonts.inter(
     fontSize: 22.sp,
     height: 1.25,
     fontWeight: FontWeight.w800,

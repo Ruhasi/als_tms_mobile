@@ -48,6 +48,55 @@ class DashboardPage extends ConsumerWidget {
         ) ??
         const <TransportBooking>[];
 
+    Future<void> logout() async {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Log out?'),
+          content: const Text('You will need to sign in again to continue.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Log out'),
+            ),
+          ],
+        ),
+      );
+      if (!context.mounted || confirmed != true) return;
+
+      final refreshToken = await ref
+          .read(sessionStorageProvider)
+          .readRefreshToken();
+      if (!context.mounted) return;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Your sign-in session has expired.')),
+        );
+        return;
+      }
+      final result = await ref
+          .read(authRepositoryProvider)
+          .logout(refreshToken: refreshToken);
+      if (!context.mounted) return;
+      result.fold(
+        (failure) => ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message))),
+        (_) async {
+          await ref.read(sessionStorageProvider).clear();
+          ref.read(appStateNotifierProvider.notifier).clearSession();
+          ref.invalidate(mobileUserProfileProvider);
+          ref.invalidate(mobileDashboardProvider);
+          ref.invalidate(transportBookingsProvider(null));
+          if (context.mounted) context.router.replaceAll([const SignInRoute()]);
+        },
+      );
+    }
+
     return dashboardResult.when(
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -65,6 +114,7 @@ class DashboardPage extends ConsumerWidget {
                     ? profile!.companies.first.name
                     : profile?.username ?? 'Nexus360',
                 department: profile?.department ?? 'TRANSPORTER',
+                onLogout: logout,
               ),
               Expanded(
                 child: RefreshIndicator(
@@ -178,13 +228,13 @@ Widget _dashboardHeader({
   required dynamic styles,
   required String name,
   required String department,
+  required VoidCallback onLogout,
 }) => Container(
   width: double.infinity,
   padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 19.h),
   color: TmsColors.ink,
   child: Column(
     children: [
-      SizedBox(height: kToolbarHeight),
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -202,7 +252,7 @@ Widget _dashboardHeader({
                 SizedBox(height: 4.h),
                 Text(
                   name,
-                  style: styles.headlineSmall.copyWith(
+                  style: styles.headlineSmall20.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
                   ),
@@ -239,21 +289,31 @@ Widget _dashboardHeader({
               ],
             ),
           ),
-          Container(
-            width: 62.w,
-            height: 62.h.toDouble(),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF1D232D),
-              border: Border.all(color: const Color(0xFF2E3540), width: 2),
-            ),
-            child: Text(
-              _initials(name),
-              style: styles.titleMedium.copyWith(
-                color: const Color(0xFFC8CCD1),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              IconButton(
+                onPressed: onLogout,
+                tooltip: 'Log out',
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
               ),
-            ),
+              Container(
+                width: 62.w,
+                height: 62.h.toDouble(),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF1D232D),
+                  border: Border.all(color: const Color(0xFF2E3540), width: 2),
+                ),
+                child: Text(
+                  _initials(name),
+                  style: styles.titleMedium.copyWith(
+                    color: const Color(0xFFC8CCD1),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

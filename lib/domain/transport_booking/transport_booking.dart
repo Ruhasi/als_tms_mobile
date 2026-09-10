@@ -107,6 +107,10 @@ class TransportBookingDetail {
     required this.currentStatus,
     required this.currentStatusDescription,
     required this.isFlagged,
+    required this.viaLocations,
+    required this.invoiceStatus,
+    required this.paymentMode,
+    required this.cashOrCredit,
     required this.paymentModeDescription,
     required this.cashOrCreditDescription,
     required this.invoiceStatusDescription,
@@ -148,6 +152,10 @@ class TransportBookingDetail {
   final int currentStatus;
   final String currentStatusDescription;
   final bool isFlagged;
+  final List<ViaLocationDetail> viaLocations;
+  final int invoiceStatus;
+  final int paymentMode;
+  final int cashOrCredit;
   final String paymentModeDescription;
   final String cashOrCreditDescription;
   final String invoiceStatusDescription;
@@ -189,7 +197,18 @@ class TransportBookingDetail {
         requestedDeliveryTime: _text(json['requestedDeliveryTime']),
         currentStatus: _asInt(json['currentStatus']),
         currentStatusDescription: _text(json['currentStatusDescription']),
-        isFlagged: _asBool(json['isFlagged'] ?? json['isFlaged']),
+        isFlagged: _isJobFlagged(
+          json['jobFlag'] ?? json['isFlagged'] ?? json['isFlaged'],
+        ),
+        viaLocations: (json['viaLocations'] as List? ?? const [])
+            .map(
+              (item) =>
+                  ViaLocationDetail.fromJson(item as Map<String, dynamic>),
+            )
+            .toList(),
+        invoiceStatus: _asInt(json['invoiceStatus']),
+        paymentMode: _asInt(json['paymentMode']),
+        cashOrCredit: _asInt(json['cashOrCredit']),
         paymentModeDescription: _text(json['paymentModeDescription']),
         cashOrCreditDescription: _text(json['cashOrCreditDescription']),
         invoiceStatusDescription: _text(json['invoiceStatusDescription']),
@@ -203,6 +222,68 @@ class TransportBookingDetail {
       );
 }
 
+class ViaLocationDetail {
+  const ViaLocationDetail({
+    required this.viaLocationName,
+    required this.viaLocationAddress,
+    required this.unloadingOrder,
+    required this.requestedArrivalTime,
+    required this.referenceNo,
+    required this.contactPerson,
+    required this.contactNo,
+    required this.dropPickStatus,
+    required this.dropPickStatusDescription,
+    required this.pieces,
+    required this.cbm,
+    required this.volume,
+    required this.weight,
+    required this.packageTypeName,
+    required this.volumeUnitName,
+    required this.weightUnitName,
+  });
+
+  final String viaLocationName;
+  final String viaLocationAddress;
+  final int unloadingOrder;
+  final String requestedArrivalTime;
+  final String referenceNo;
+  final String contactPerson;
+  final String contactNo;
+  final int dropPickStatus;
+  final String dropPickStatusDescription;
+  final int? pieces;
+  final double? cbm;
+  final double? volume;
+  final double? weight;
+  final String packageTypeName;
+  final String volumeUnitName;
+  final String weightUnitName;
+
+  factory ViaLocationDetail.fromJson(Map<String, dynamic> json) =>
+      ViaLocationDetail(
+        viaLocationName: _text(json['viaLocationName'] ?? json['locationName']),
+        viaLocationAddress: _text(json['viaLocationAddress']),
+        unloadingOrder: _asInt(json['unloadingOrder']),
+        requestedArrivalTime: _text(json['requestedArrivalTime']),
+        referenceNo: _text(json['referenceNo']),
+        contactPerson: _text(json['contactPerson']),
+        contactNo: _text(json['contactNo']),
+        dropPickStatus: _asInt(json['dropPickStatus']),
+        dropPickStatusDescription: _text(json['dropPickStatusDescription']),
+        pieces: _asNullableInt(json['pieces']),
+        cbm: _asNullableDouble(json['cbm']),
+        volume: _asNullableDouble(json['volume']),
+        weight: _asNullableDouble(json['weight']),
+        packageTypeName: _text(json['packageTypeName'] ?? json['packageType']),
+        volumeUnitName: _text(
+          json['uovName'] ?? json['volumeUnitName'] ?? json['volumeUnit'],
+        ),
+        weightUnitName: _text(
+          json['uowName'] ?? json['weightUnitName'] ?? json['weightUnit'],
+        ),
+      );
+}
+
 String _text(Object? value) => value?.toString() ?? '';
 
 double _asDouble(Object? value) => switch (value) {
@@ -210,6 +291,15 @@ double _asDouble(Object? value) => switch (value) {
   num value => value.toDouble(),
   String value => double.tryParse(value) ?? 0,
   _ => 0,
+};
+
+double? _asNullableDouble(Object? value) =>
+    value == null ? null : _asDouble(value);
+
+bool _isJobFlagged(Object? value) => switch (value) {
+  String value =>
+    value.toLowerCase() == 'flag' || value.toLowerCase() == 'flagged',
+  _ => _asBool(value),
 };
 
 bool _asBool(Object? value) => switch (value) {

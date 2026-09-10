@@ -353,6 +353,8 @@ class VehicleAssignmentPage extends HookConsumerWidget {
                     vehicleSeq: selectedVehicle.value?.seq,
                     driverSeq: selectedDriver.value?.seq,
                     helperSeq: selectedHelper.value?.seq,
+                    secondaryDriverSeq: selectedSecondaryDriver.value?.seq,
+                    secondaryHelperSeq: selectedSecondaryHelper.value?.seq,
                     trailerSeq: selectedTrailer.value?.seq,
                     payableVehicleTypeSeq: selectedVehicleTypeLookup.value?.seq,
                   ),

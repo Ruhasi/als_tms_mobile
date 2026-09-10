@@ -5,6 +5,9 @@ sealed class AppFailure implements Exception {
   final String message;
   final Object? cause;
   final StackTrace? stackTrace;
+
+  @override
+  String toString() => message;
 }
 
 final class NetworkFailure extends AppFailure {

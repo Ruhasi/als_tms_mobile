@@ -26,9 +26,6 @@ class AuthRepository {
 
       decode: (json) {
         final response = json as Map<String, dynamic>;
-        if (response['status'] != "success") {
-          throw Exception('Sign in failed. Please check your credentials.');
-        }
         return LoginSession.fromJson(response['data']);
       },
     );
@@ -49,6 +46,21 @@ class AuthRepository {
     );
     return switch (result) {
       ApiSuccess(data: final profile) => right(profile),
+      ApiError(failure: final failure) => left(failure),
+    };
+  }
+
+  Future<Either<NetworkFailure, void>> logout({
+    required String refreshToken,
+  }) async {
+    final result = await _apiClient.request<void>(
+      path: '/api/v1/mobile/logout',
+      method: HttpMethod.post,
+      data: {'refreshToken': refreshToken},
+      decode: (_) {},
+    );
+    return switch (result) {
+      ApiSuccess() => right(null),
       ApiError(failure: final failure) => left(failure),
     };
   }

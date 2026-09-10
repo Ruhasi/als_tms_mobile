@@ -22,7 +22,7 @@ class NewJobPage extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lookups = ref.read(bookingLookupRepositoryProvider);
-    final dropLocations = useState<List<_DropLocation>>(const []);
+    final dropLocations = useState<List<ViaLocationRequest>>(const []);
     final customer = useState<LookupItem?>(null);
     final department = useState<LookupItem?>(null);
     final invoiceTo = useState<LookupItem?>(null);
@@ -38,14 +38,16 @@ class NewJobPage extends HookConsumerWidget {
     final vehicleTypeLookup = useState<LookupItem?>(null);
     final vehicle = useState('');
     final driver = useState('');
-    final paymentMode = useState<int?>(null);
-    final cashOrCredit = useState<int?>(null);
-    final invoiceStatus = useState<int?>(null);
+    final vehicleAssignment = useState<VehicleAssignmentResult?>(null);
+    final paymentMode = useState<int?>(3);
+    final cashOrCredit = useState<int?>(1);
+    final invoiceStatus = useState<int?>(1);
     final requestedArrival = useState<DateTime?>(null);
     final requestedDelivery = useState<DateTime?>(null);
     final comments = useTextEditingController();
     final isSubmitting = useState(false);
     final showValidationErrors = useState(false);
+    final isLoadingLookups = useState(true);
 
     Future<LookupItem?> lookup(
       String title,
@@ -69,6 +71,28 @@ class NewJobPage extends HookConsumerWidget {
           lookups.locations(''),
         ]);
         if (!context.mounted) return;
+        String? failureMessage;
+        for (final result in results) {
+          result.fold((failure) => failureMessage ??= failure.message, (_) {});
+        }
+        if (failureMessage != null) {
+          await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Unable to load job form'),
+              content: Text(failureMessage!),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+          if (context.mounted) context.router.maybePop();
+          return;
+        }
         results[0].fold((_) {}, (items) {
           departmentItems.value = items;
           if (items.length == 1) department.value = items.first;
@@ -87,34 +111,47 @@ class NewJobPage extends HookConsumerWidget {
         results[3].fold((_) {}, (items) {
           locationItems.value = items;
         });
+        isLoadingLookups.value = false;
       }
 
       preload();
       return null;
     }, const []);
 
-    Future<void> addDropLocation() async {
-      final location = await showModalBottomSheet<_DropLocation>(
-        context: context,
-        isScrollControlled: true,
+    if (isLoadingLookups.value) {
+      return const Scaffold(
         backgroundColor: TmsColors.canvas,
-        showDragHandle: true,
-        builder: (_) => _AddDropLocationSheet(
-          locationSearch: lookups.locations,
-          initialLocations: locationItems.value,
-          selectedLocationIds: dropLocations.value
-              .map((dropLocation) => dropLocation.location.id)
-              .toSet(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    Future<void> addDropLocation() async {
+      final location = await context.router.push<ViaLocationRequest>(
+        ViaLocationRoute(unloadingOrder: dropLocations.value.length + 1),
       );
       if (!context.mounted) return;
       if (location == null) return;
+      if (dropLocations.value.any(
+        (dropLocation) =>
+            dropLocation.viaLocationSeq == location.viaLocationSeq,
+      )) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This via location has already been added.'),
+          ),
+        );
+        return;
+      }
       dropLocations.value = [...dropLocations.value, location];
     }
 
-    void removeDropLocation(_DropLocation location) {
+    void removeDropLocation(ViaLocationRequest location) {
       dropLocations.value = dropLocations.value
           .where((dropLocation) => dropLocation != location)
+          .toList()
+          .asMap()
+          .entries
+          .map((entry) => entry.value.withUnloadingOrder(entry.key + 1))
           .toList();
     }
 
@@ -131,6 +168,7 @@ class NewJobPage extends HookConsumerWidget {
       vehicleType.value = result.vehicleType;
       vehicle.value = result.vehicle;
       driver.value = result.driver;
+      vehicleAssignment.value = result;
     }
 
     final assigned = !isVehicleUnassigned(vehicle.value);
@@ -162,7 +200,7 @@ class NewJobPage extends HookConsumerWidget {
                 children: [
                   _sectionLabel('PARTIES'),
                   SelectorTile(
-                    label: 'Department',
+                    label: 'Department *',
                     value: department.value?.name ?? 'Select department',
                     hasError:
                         showValidationErrors.value && department.value == null,
@@ -177,7 +215,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Customer',
+                    label: 'Customer *',
                     value: customer.value?.name ?? 'Select customer',
                     hasError:
                         showValidationErrors.value && customer.value == null,
@@ -191,11 +229,14 @@ class NewJobPage extends HookConsumerWidget {
                       customer.value = selected;
                       vehicleType.value = '';
                       vehicleTypeLookup.value = null;
+                      vehicle.value = '';
+                      driver.value = '';
+                      vehicleAssignment.value = null;
                     },
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Shipper',
+                    label: 'Shipper *',
                     value: shipper.value?.name ?? 'Select shipper',
                     hasError:
                         showValidationErrors.value && shipper.value == null,
@@ -210,7 +251,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Invoice to',
+                    label: 'Invoice to *',
                     value: invoiceTo.value?.name ?? 'Select invoice customer',
                     hasError:
                         showValidationErrors.value && invoiceTo.value == null,
@@ -225,7 +266,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   _sectionLabel('ROUTE'),
                   SelectorTile(
-                    label: 'Pickup location',
+                    label: 'Pickup location *',
                     value: pickup.value?.name ?? 'Select pickup location',
                     hasError:
                         showValidationErrors.value && pickup.value == null,
@@ -238,15 +279,8 @@ class NewJobPage extends HookConsumerWidget {
                       if (selected != null) pickup.value = selected;
                     },
                   ),
-                  // const SizedBox(height: 12),
-                  // _DropLocationsField(
-                  //   locations: dropLocations.value,
-                  //   onAdd: addDropLocation,
-                  //   onRemove: removeDropLocation,
-                  // ),
-                  const SizedBox(height: 12),
                   SelectorTile(
-                    label: 'Final destination',
+                    label: 'Final destination *',
                     value:
                         destination.value?.name ??
                         (finalDestination.value.isEmpty
@@ -265,7 +299,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Requested arrival',
+                    label: 'Requested arrival date & time *',
                     value: _dateTimeLabel(context, requestedArrival.value),
                     hasError:
                         showValidationErrors.value &&
@@ -280,7 +314,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Requested delivery',
+                    label: 'Requested delivery date & time *',
                     value: _dateTimeLabel(context, requestedDelivery.value),
                     hasError:
                         showValidationErrors.value &&
@@ -295,7 +329,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Payment mode',
+                    label: 'Payment mode *',
                     value: _paymentModeLabel(paymentMode.value),
                     hasError:
                         showValidationErrors.value && paymentMode.value == null,
@@ -312,7 +346,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Cash or credit',
+                    label: 'Cash or credit *',
                     value: _cashOrCreditLabel(cashOrCredit.value),
                     hasError:
                         showValidationErrors.value &&
@@ -330,7 +364,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Invoice status',
+                    label: 'Invoice status *',
                     value: _invoiceStatusLabel(invoiceStatus.value),
                     hasError:
                         showValidationErrors.value &&
@@ -348,7 +382,7 @@ class NewJobPage extends HookConsumerWidget {
                   ),
                   _sectionLabel('VEHICLE & DRIVER (OPTIONAL)'),
                   SelectorTile(
-                    label: 'Vehicle type',
+                    label: 'Vehicle type *',
                     value: vehicleType.value.isEmpty
                         ? 'Select vehicle type'
                         : vehicleType.value,
@@ -426,11 +460,13 @@ class NewJobPage extends HookConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'After submitting you can edit or cancel this request for 60 minutes.',
-                    style: TextStyle(fontSize: 10, color: TmsColors.muted),
+                  _sectionLabel('VIA LOCATIONS (OPTIONAL)'),
+                  _ViaLocationsField(
+                    locations: dropLocations.value,
+                    onAdd: addDropLocation,
+                    onRemove: removeDropLocation,
                   ),
+
                   const SizedBox(height: 20),
                 ],
               ),
@@ -465,6 +501,26 @@ class NewJobPage extends HookConsumerWidget {
                           return;
                         }
                         isSubmitting.value = true;
+                        final assignment = vehicleAssignment.value;
+                        final assignmentRequest =
+                            assignment?.transportCompanySeq != null &&
+                                assignment?.vehicleSeq != null &&
+                                assignment?.driverSeq != null
+                            ? CreateVehicleAssignmentRequest(
+                                transportCompanySeq:
+                                    assignment!.transportCompanySeq!,
+                                vehicleSeq: assignment.vehicleSeq!,
+                                driverSeq: assignment.driverSeq!,
+                                helperSeq: assignment.helperSeq,
+                                secondaryDriverSeq:
+                                    assignment.secondaryDriverSeq,
+                                secondaryHelperSeq:
+                                    assignment.secondaryHelperSeq,
+                                trailerSeq: assignment.trailerSeq,
+                                payableVehicleTypeSeq:
+                                    assignment.payableVehicleTypeSeq,
+                              )
+                            : null;
                         final result = await lookups.createBooking(
                           CreateTransportBookingRequest(
                             departmentSeq: department.value!.seq,
@@ -482,6 +538,8 @@ class NewJobPage extends HookConsumerWidget {
                             paymentMode: paymentMode.value!,
                             cashOrCredit: cashOrCredit.value!,
                             comments: comments.text.trim(),
+                            viaLocations: dropLocations.value,
+                            vehicleAssignment: assignmentRequest,
                           ),
                         );
                         if (!context.mounted) return;
@@ -525,6 +583,127 @@ class NewJobPage extends HookConsumerWidget {
   }
 }
 
+class _ViaLocationsField extends StatelessWidget {
+  const _ViaLocationsField({
+    required this.locations,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<ViaLocationRequest> locations;
+  final VoidCallback onAdd;
+  final ValueChanged<ViaLocationRequest> onRemove;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: TmsColors.line),
+      borderRadius: BorderRadius.circular(9),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'VIA LOCATIONS (OPTIONAL)',
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                  color: TmsColors.muted,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('Add'),
+              style: TextButton.styleFrom(
+                foregroundColor: TmsColors.orange,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                minimumSize: const Size(0, 32),
+              ),
+            ),
+          ],
+        ),
+        if (locations.isEmpty)
+          const Text(
+            'Add one or more via locations',
+            style: TextStyle(fontSize: 12, color: TmsColors.muted),
+          )
+        else
+          ...locations.map(
+            (location) => Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+                decoration: BoxDecoration(
+                  color: TmsColors.orange.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundColor: TmsColors.orange,
+                      child: Text(
+                        '${location.unloadingOrder}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            location.locationName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _dateTimeLabel(
+                              context,
+                              location.requestedArrivalTime,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: TmsColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => onRemove(location),
+                      icon: const Icon(
+                        CupertinoIcons.xmark_circle_fill,
+                        size: 18,
+                      ),
+                      color: TmsColors.muted,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
 class _DropLocation {
   const _DropLocation({required this.location, required this.dropAt});
 
@@ -532,6 +711,8 @@ class _DropLocation {
   final DateTime dropAt;
 }
 
+// Retained while the legacy bottom-sheet implementation remains below.
+// ignore: unused_element
 class _DropLocationsField extends StatelessWidget {
   const _DropLocationsField({
     required this.locations,
@@ -559,7 +740,7 @@ class _DropLocationsField extends StatelessWidget {
           children: [
             const Expanded(
               child: Text(
-                'DROP LOCATIONS (OPTIONAL)',
+                'VIA LOCATIONS (OPTIONAL)',
                 style: TextStyle(
                   fontSize: 8,
                   fontWeight: FontWeight.w800,
@@ -587,7 +768,7 @@ class _DropLocationsField extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.only(top: 2),
             child: Text(
-              'Add one or more delivery locations',
+              'Add one or more via locations',
               style: TextStyle(fontSize: 12, color: TmsColors.muted),
             ),
           )
@@ -658,7 +839,7 @@ class _DropLocationsField extends StatelessWidget {
                       ),
                       color: TmsColors.muted,
                       visualDensity: VisualDensity.compact,
-                      tooltip: 'Remove drop location',
+                      tooltip: 'Remove via location',
                     ),
                   ],
                 ),
@@ -694,7 +875,7 @@ class _AddDropLocationSheetState extends State<_AddDropLocationSheet> {
   Future<void> _selectLocation() async {
     final selected = await showBookingLookupSheet(
       context,
-      title: 'Drop location',
+      title: 'Via location',
       search: widget.locationSearch,
       initialItems: widget.initialLocations,
     );
@@ -744,7 +925,7 @@ class _AddDropLocationSheetState extends State<_AddDropLocationSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'ADD DROP LOCATION',
+              'ADD VIA LOCATION',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 4),
@@ -760,19 +941,19 @@ class _AddDropLocationSheetState extends State<_AddDropLocationSheet> {
             ),
             const SizedBox(height: 8),
             SelectorTile(
-              label: 'Drop date',
+              label: 'Via date',
               value: dateText,
               onTap: _selectDate,
             ),
             const SizedBox(height: 8),
             SelectorTile(
-              label: 'Drop time',
+              label: 'Via time',
               value: timeText,
               onTap: _selectTime,
             ),
             const SizedBox(height: 18),
             TmsButton(
-              label: 'Add drop location',
+              label: 'Add via location',
               onPressed: canSave
                   ? () {
                       final dropAt = DateTime(

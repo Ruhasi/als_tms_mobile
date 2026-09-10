@@ -154,7 +154,7 @@ class _BookingLookupSheetState extends State<_BookingLookupSheet> {
                             title: Text(item.name),
                             subtitle: item.code.isEmpty
                                 ? null
-                                : Text(item.code),
+                                : item.code == item.name ? null : Text(item.code),
                           ),
                         );
                       },

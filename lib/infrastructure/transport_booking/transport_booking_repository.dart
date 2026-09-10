@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../domain/core/app_failure.dart';
+import '../../domain/transport_booking/create_transport_booking_request.dart';
 import '../../domain/transport_booking/transport_booking.dart';
 import '../api_helpers/api_client.dart';
 
@@ -87,6 +88,72 @@ class TransportBookingRepository {
       path: '$_path/$transportBookingSeq/flag',
       method: HttpMethod.post,
       data: {'flag': isFlagged ? 'Flag' : 'Resolved'},
+      decode: (_) {},
+    );
+    return switch (result) {
+      ApiSuccess() => right(null),
+      ApiError(failure: final failure) => left(failure),
+    };
+  }
+
+  Future<Either<NetworkFailure, void>> updateSchedule({
+    required TransportBookingDetail booking,
+    required String requestedArrivalTime,
+    required String requestedDeliveryTime,
+  }) async {
+    final result = await _api.request<void>(
+      path: '$_path/${booking.transportBookingSeq}',
+      method: HttpMethod.put,
+      data: {
+        'departmentSeq': booking.departmentSeq,
+        'customerSeq': booking.customerSeq,
+        'shipperSeq': booking.shipperSeq,
+        'invoiceCustomerSeq': booking.invoiceCustomerSeq,
+        'invoiceStatus': booking.invoiceStatus,
+        'vehicleTypeSeq': booking.vehicleTypeSeq,
+        'pickupLocationSeq': booking.pickupLocationSeq,
+        'requestedArrivalTime': requestedArrivalTime,
+        'deliveryLocationSeq': booking.deliveryLocationSeq,
+        'requestedDeliveryTime': requestedDeliveryTime,
+        'pickupLocationAddress': booking.pickupLocationAddress,
+        'deliveryLocationAddress': booking.deliveryLocationAddress,
+        'paymentMode': booking.paymentMode,
+        'cashOrCredit': booking.cashOrCredit,
+      },
+      decode: (_) {},
+    );
+    return switch (result) {
+      ApiSuccess() => right(null),
+      ApiError(failure: final failure) => left(failure),
+    };
+  }
+
+  Future<Either<NetworkFailure, void>> deleteBooking(
+    int transportBookingSeq,
+  ) async {
+    final result = await _api.request<void>(
+      path: '$_path/$transportBookingSeq',
+      method: HttpMethod.delete,
+      decode: (_) {},
+    );
+    return switch (result) {
+      ApiSuccess() => right(null),
+      ApiError(failure: final failure) => left(failure),
+    };
+  }
+
+  Future<Either<NetworkFailure, void>> addViaLocations({
+    required int transportBookingSeq,
+    required List<ViaLocationRequest> viaLocations,
+  }) async {
+    final result = await _api.request<void>(
+      path: '$_path/$transportBookingSeq/via-locations',
+      method: HttpMethod.post,
+      data: {
+        'viaLocations': viaLocations
+            .map((location) => location.toJson())
+            .toList(),
+      },
       decode: (_) {},
     );
     return switch (result) {

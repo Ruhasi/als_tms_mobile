@@ -59,7 +59,17 @@ final class ApiClient {
       if (statusCode < 200 || statusCode >= 300) {
         return ApiError(
           NetworkFailure(
-            'Request failed with status $statusCode.',
+            _messageFromResponse(response.data) ??
+                'Request failed with status $statusCode.',
+            statusCode: statusCode,
+          ),
+        );
+      }
+      if (_isApiError(response.data)) {
+        return ApiError(
+          NetworkFailure(
+            _messageFromResponse(response.data) ??
+                'The request could not be completed.',
             statusCode: statusCode,
           ),
         );
@@ -72,7 +82,7 @@ final class ApiClient {
     } on DioException catch (error, stackTrace) {
       return ApiError(
         NetworkFailure(
-          _messageFor(error),
+          _messageFromResponse(error.response?.data) ?? _messageFor(error),
           statusCode: error.response?.statusCode,
           cause: error,
           stackTrace: stackTrace,
@@ -138,6 +148,21 @@ final class ApiClient {
       DioExceptionType.cancel => 'Request was cancelled.',
       _ => 'The request could not be completed.',
     };
+  }
+
+  static bool _isApiError(Object? data) {
+    if (data is! Map) return false;
+    final status = data['status']?.toString().toLowerCase();
+    return (status != null && status != 'success') || data['success'] == false;
+  }
+
+  static String? _messageFromResponse(Object? data) {
+    if (data is! Map) return null;
+    final message = data['message'];
+    if (message is String && message.trim().isNotEmpty) {
+      return message.trim();
+    }
+    return null;
   }
 }
 

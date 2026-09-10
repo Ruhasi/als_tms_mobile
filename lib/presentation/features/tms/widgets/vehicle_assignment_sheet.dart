@@ -18,6 +18,8 @@ class VehicleAssignmentResult {
     this.vehicleSeq,
     this.driverSeq,
     this.helperSeq,
+    this.secondaryDriverSeq,
+    this.secondaryHelperSeq,
     this.trailerSeq,
     this.payableVehicleTypeSeq,
   });
@@ -33,6 +35,8 @@ class VehicleAssignmentResult {
   final int? vehicleSeq;
   final int? driverSeq;
   final int? helperSeq;
+  final int? secondaryDriverSeq;
+  final int? secondaryHelperSeq;
   final int? trailerSeq;
   final int? payableVehicleTypeSeq;
 }

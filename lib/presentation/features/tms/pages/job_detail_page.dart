@@ -5,8 +5,10 @@ import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../../../../application/dashboard/mobile_dashboard_providers.dart';
 import '../../../../application/transport_booking/booking_lookup_providers.dart';
 import '../../../../domain/tms/models/tms_models.dart';
+import '../../../../domain/transport_booking/create_transport_booking_request.dart';
 import '../../../../domain/transport_booking/transport_booking.dart';
 import '../../../../domain/transport_booking/vehicle_assignment.dart';
 import '../../../core/misc/text_style_provider.dart';
@@ -33,6 +35,8 @@ class JobDetailPage extends HookConsumerWidget {
     final vehicleAssignments = ref.read(vehicleAssignmentRepositoryProvider);
     final bookingRepository = ref.read(transportBookingRepositoryProvider);
     final isUpdatingFlag = useState(false);
+    final isDeleting = useState(false);
+    final isAddingViaLocations = useState(false);
 
     return ref
         .watch(transportBookingDetailProvider(jobId))
@@ -149,6 +153,47 @@ class JobDetailPage extends HookConsumerWidget {
                 );
               }
 
+              void viewViaLocations() {
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: TmsColors.canvas,
+                  showDragHandle: true,
+                  builder: (_) =>
+                      _viaLocationDetailsSheet(booking.viaLocations, styles),
+                );
+              }
+
+              Future<void> addViaLocation() async {
+                final viaLocation = await context.router
+                    .push<ViaLocationRequest>(
+                      ViaLocationRoute(
+                        unloadingOrder: booking.viaLocations.length + 1,
+                      ),
+                    );
+                if (!context.mounted || viaLocation == null) return;
+
+                isAddingViaLocations.value = true;
+                final result = await bookingRepository.addViaLocations(
+                  transportBookingSeq: booking.transportBookingSeq,
+                  viaLocations: [viaLocation],
+                );
+                if (!context.mounted) return;
+                isAddingViaLocations.value = false;
+                result.fold(
+                  (failure) => ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(failure.message))),
+                  (_) {
+                    ref.invalidate(transportBookingDetailProvider(jobId));
+                    ref.invalidate(transportBookingsProvider);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Via location added.')),
+                    );
+                  },
+                );
+              }
+
               Future<void> updateFlag() async {
                 final nextIsFlagged = !booking.isFlagged;
                 final action = nextIsFlagged ? 'flag' : 'resolve the flag on';
@@ -198,6 +243,52 @@ class JobDetailPage extends HookConsumerWidget {
                         ),
                       ),
                     );
+                  },
+                );
+              }
+
+              Future<void> deleteBooking() async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Delete job request?'),
+                    content: Text(
+                      'This will permanently delete ${booking.bookingNo}.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: TmsColors.red,
+                        ),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+                if (!context.mounted || confirmed != true) return;
+
+                isDeleting.value = true;
+                final result = await bookingRepository.deleteBooking(
+                  booking.transportBookingSeq,
+                );
+                if (!context.mounted) return;
+                isDeleting.value = false;
+                result.fold(
+                  (failure) => ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(failure.message))),
+                  (_) {
+                    ref.invalidate(transportBookingsProvider);
+                    ref.invalidate(mobileDashboardProvider);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Job request deleted.')),
+                    );
+                    context.router.maybePop();
                   },
                 );
               }
@@ -272,35 +363,35 @@ class JobDetailPage extends HookConsumerWidget {
                         child: ListView(
                           padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 94.h),
                           children: [
-                            Container(
-                              padding: EdgeInsets.all(14.w),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFEEE6),
-                                borderRadius: BorderRadius.circular(11.r),
-                                border: Border.all(
-                                  color: const Color(0xFFF7DECF),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Editable for 38 more minutes',
-                                    style: styles.bodyMedium.copyWith(
-                                      color: TmsColors.orange,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  SizedBox(height: 3.h),
-                                  Text(
-                                    'Changes after the window need a dispatcher\namendment.',
-                                    style: styles.bodySmall.copyWith(
-                                      fontSize: 11.sp,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            // Container(
+                            //   padding: EdgeInsets.all(14.w),
+                            //   decoration: BoxDecoration(
+                            //     color: const Color(0xFFFFEEE6),
+                            //     borderRadius: BorderRadius.circular(11.r),
+                            //     border: Border.all(
+                            //       color: const Color(0xFFF7DECF),
+                            //     ),
+                            //   ),
+                            //   child: Column(
+                            //     crossAxisAlignment: CrossAxisAlignment.start,
+                            //     children: [
+                            //       Text(
+                            //         'Editable for 38 more minutes',
+                            //         style: styles.bodyMedium.copyWith(
+                            //           color: TmsColors.orange,
+                            //           fontWeight: FontWeight.w900,
+                            //         ),
+                            //       ),
+                            //       SizedBox(height: 3.h),
+                            //       Text(
+                            //         'Changes after the window need a dispatcher\namendment.',
+                            //         style: styles.bodySmall.copyWith(
+                            //           fontSize: 11.sp,
+                            //         ),
+                            //       ),
+                            //     ],
+                            //   ),
+                            // ),
                             if (needsVehicle) ...[
                               SizedBox(height: 13.h),
                               _assignVehicleBanner(
@@ -314,6 +405,21 @@ class JobDetailPage extends HookConsumerWidget {
                                 styles,
                                 isLoading: isLoadingAssignmentDetails.value,
                                 onView: viewVehicleAssignment,
+                              ),
+                            ],
+                            if (booking.viaLocations.isNotEmpty) ...[
+                              SizedBox(height: 13.h),
+                              _viewViaLocationsBanner(
+                                styles,
+                                count: booking.viaLocations.length,
+                                onView: viewViaLocations,
+                              ),
+                            ] else ...[
+                              SizedBox(height: 13.h),
+                              _addViaLocationsBanner(
+                                styles,
+                                isLoading: isAddingViaLocations.value,
+                                onAdd: addViaLocation,
                               ),
                             ],
                             SizedBox(height: 13.h),
@@ -340,32 +446,32 @@ class JobDetailPage extends HookConsumerWidget {
                               driver: needsVehicle ? 'Not assigned' : driver,
                             ),
                             SizedBox(height: 15.h),
-                            Text(
-                              'ACTIVITY',
-                              style: styles.labelSmall.copyWith(
-                                fontSize: 11.sp,
-                                letterSpacing: 1.4,
-                              ),
-                            ),
-                            SizedBox(height: 9.h),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 14.w,
-                                vertical: 12.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12.r),
-                              ),
-                              child: Column(
-                                children: job.comments
-                                    .map(
-                                      (comment) =>
-                                          _activityRow(comment, styles),
-                                    )
-                                    .toList(),
-                              ),
-                            ),
+                            // Text(
+                            //   'ACTIVITY',
+                            //   style: styles.labelSmall.copyWith(
+                            //     fontSize: 11.sp,
+                            //     letterSpacing: 1.4,
+                            //   ),
+                            // ),
+                            // SizedBox(height: 9.h),
+                            // Container(
+                            //   padding: EdgeInsets.symmetric(
+                            //     horizontal: 14.w,
+                            //     vertical: 12.h,
+                            //   ),
+                            //   decoration: BoxDecoration(
+                            //     color: Colors.white,
+                            //     borderRadius: BorderRadius.circular(12.r),
+                            //   ),
+                            //   child: Column(
+                            //     children: job.comments
+                            //         .map(
+                            //           (comment) =>
+                            //               _activityRow(comment, styles),
+                            //         )
+                            //         .toList(),
+                            //   ),
+                            // ),
                           ],
                         ),
                       ),
@@ -390,12 +496,58 @@ class JobDetailPage extends HookConsumerWidget {
                                     onPressed: () => _showEditJobForm(
                                       context,
                                       styles,
-                                      status,
                                       requestedArrival,
                                       requestedDelivery,
-                                      (value) => workflowStatus.value = value,
-                                      (value) => arrival.value = value,
-                                      (value) => delivery.value = value,
+                                      onSave:
+                                          (
+                                            updatedArrival,
+                                            updatedDelivery,
+                                          ) async {
+                                            final result =
+                                                await bookingRepository
+                                                    .updateSchedule(
+                                                      booking: booking,
+                                                      requestedArrivalTime:
+                                                          updatedArrival,
+                                                      requestedDeliveryTime:
+                                                          updatedDelivery,
+                                                    );
+                                            if (!context.mounted) return false;
+                                            return result.fold(
+                                              (failure) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      failure.message,
+                                                    ),
+                                                  ),
+                                                );
+                                                return false;
+                                              },
+                                              (_) {
+                                                arrival.value = updatedArrival;
+                                                delivery.value =
+                                                    updatedDelivery;
+                                                ref.invalidate(
+                                                  transportBookingDetailProvider(
+                                                    jobId,
+                                                  ),
+                                                );
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Requested schedule updated.',
+                                                    ),
+                                                  ),
+                                                );
+                                                return true;
+                                              },
+                                            );
+                                          },
                                     ),
                                   ),
                                 ),
@@ -404,10 +556,9 @@ class JobDetailPage extends HookConsumerWidget {
                                   child: SizedBox(
                                     height: 48.h,
                                     child: OutlinedButton(
-                                      onPressed: () => _showCancelReasonPicker(
-                                        context,
-                                        styles,
-                                      ),
+                                      onPressed: isDeleting.value
+                                          ? null
+                                          : deleteBooking,
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: TmsColors.red,
                                         side: const BorderSide(
@@ -420,7 +571,9 @@ class JobDetailPage extends HookConsumerWidget {
                                         ),
                                       ),
                                       child: Text(
-                                        'Cancel job',
+                                        isDeleting.value
+                                            ? 'Cancelling...'
+                                            : 'Cancel job',
                                         style: styles.bodyMedium.copyWith(
                                           color: TmsColors.red,
                                           fontWeight: FontWeight.w800,
@@ -557,6 +710,202 @@ Widget _viewVehicleAssignmentBanner(
   ),
 );
 
+Widget _viewViaLocationsBanner(
+  dynamic styles, {
+  required int count,
+  required VoidCallback onView,
+}) => Material(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(12.r),
+  child: InkWell(
+    onTap: onView,
+    borderRadius: BorderRadius.circular(12.r),
+    child: Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: TmsColors.line),
+      ),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.map_pin_ellipse, color: TmsColors.orange),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Via locations available',
+                  style: styles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 3.h),
+                Text(
+                  '$count scheduled ${count == 1 ? 'drop' : 'drops'}. Tap to view details.',
+                  style: styles.bodySmall.copyWith(fontSize: 11.sp),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: TmsColors.muted),
+        ],
+      ),
+    ),
+  ),
+);
+
+Widget _addViaLocationsBanner(
+  dynamic styles, {
+  required bool isLoading,
+  required VoidCallback onAdd,
+}) => Material(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(12.r),
+  child: InkWell(
+    onTap: isLoading ? null : onAdd,
+    borderRadius: BorderRadius.circular(12.r),
+    child: Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: TmsColors.line),
+      ),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.map_pin_ellipse, color: TmsColors.orange),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add via location',
+                  style: styles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 3.h),
+                Text(
+                  'Add an intermediate delivery or collection stop.',
+                  style: styles.bodySmall.copyWith(fontSize: 11.sp),
+                ),
+              ],
+            ),
+          ),
+          isLoading
+              ? const CupertinoActivityIndicator()
+              : const Icon(Icons.add_circle_outline, color: TmsColors.orange),
+        ],
+      ),
+    ),
+  ),
+);
+
+Widget _viaLocationDetailsSheet(
+  List<ViaLocationDetail> locations,
+  dynamic styles,
+) => SafeArea(
+  child: Padding(
+    padding: EdgeInsets.fromLTRB(18.w, 4.h, 18.w, 24.h),
+    child: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('VIA LOCATIONS', style: styles.titleMedium),
+          SizedBox(height: 4.h),
+          Text(
+            '${locations.length} scheduled ${locations.length == 1 ? 'drop' : 'drops'}',
+            style: styles.bodySmall,
+          ),
+          SizedBox(height: 16.h),
+          ...locations.map(
+            (location) => Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(bottom: 10.h),
+              padding: EdgeInsets.all(14.w),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(color: TmsColors.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'VIA ${location.unloadingOrder}',
+                    style: styles.labelSmall.copyWith(
+                      color: TmsColors.orange,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  SizedBox(height: 6.h),
+                  _detailLine(
+                    'Location',
+                    location.viaLocationName.isEmpty
+                        ? location.viaLocationAddress
+                        : location.viaLocationName,
+                    styles,
+                  ),
+                  if (location.viaLocationAddress.isNotEmpty &&
+                      location.viaLocationAddress != location.viaLocationName)
+                    _detailLine('Address', location.viaLocationAddress, styles),
+                  _detailLine(
+                    'Requested arrival date & time',
+                    location.requestedArrivalTime,
+                    styles,
+                  ),
+                  if (location.dropPickStatusDescription.isNotEmpty)
+                    _detailLine(
+                      'Drop / pick status',
+                      location.dropPickStatusDescription,
+                      styles,
+                    ),
+                  if (location.referenceNo.isNotEmpty)
+                    _detailLine('Reference', location.referenceNo, styles),
+                  if (location.contactPerson.isNotEmpty)
+                    _detailLine(
+                      'Contact person',
+                      location.contactPerson,
+                      styles,
+                    ),
+                  if (location.contactNo.isNotEmpty)
+                    _detailLine('Contact number', location.contactNo, styles),
+                  if (location.pieces != null)
+                    _detailLine('Pieces', '${location.pieces}', styles),
+                  if (location.cbm != null)
+                    _detailLine('CBM', '${location.cbm}', styles),
+                  if (location.volume != null)
+                    _detailLine(
+                      'Volume',
+                      '${location.volume}${location.volumeUnitName.isEmpty ? '' : ' ${location.volumeUnitName}'}',
+                      styles,
+                    ),
+                  if (location.weight != null)
+                    _detailLine(
+                      'Weight',
+                      '${location.weight}${location.weightUnitName.isEmpty ? '' : ' ${location.weightUnitName}'}',
+                      styles,
+                    ),
+                  if (location.packageTypeName.isNotEmpty)
+                    _detailLine(
+                      'Package type',
+                      location.packageTypeName,
+                      styles,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+);
+
 Widget _vehicleAssignmentDetailsSheet(
   VehicleAssignmentDetails details,
   dynamic styles,
@@ -576,12 +925,12 @@ Widget _vehicleAssignmentDetailsSheet(
           _detailLine('Pickup', details.pickupLocation, styles),
           _detailLine('Delivery', details.deliveryLocation, styles),
           _detailLine(
-            'Requested arrival',
+            'Requested arrival date & time',
             details.requestedArrivalTime,
             styles,
           ),
           _detailLine(
-            'Requested delivery',
+            'Requested delivery date & time',
             details.requestedDeliveryTime,
             styles,
           ),
@@ -671,7 +1020,7 @@ Widget _routeCard(
           ),
           const Spacer(),
           InkWell(
-            onTap: changeStatus,
+            onTap: () {},
             borderRadius: BorderRadius.circular(6.r),
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 5.h),
@@ -689,12 +1038,6 @@ Widget _routeCard(
                       color: _statusColor(workflowStatus),
                       letterSpacing: .8,
                     ),
-                  ),
-                  SizedBox(width: 4.w),
-                  Icon(
-                    CupertinoIcons.chevron_down,
-                    size: 10.sp,
-                    color: _statusColor(workflowStatus),
                   ),
                 ],
               ),
@@ -726,7 +1069,7 @@ Widget _routeCard(
                   ),
                 ),
                 Text(
-                  'Arrival requested $arrival',
+                  'Requested arrival date & time: $arrival',
                   style: styles.bodySmall.copyWith(fontSize: 11.sp),
                 ),
                 SizedBox(height: 14.h),
@@ -738,7 +1081,7 @@ Widget _routeCard(
                   ),
                 ),
                 Text(
-                  'Delivery requested $delivery',
+                  'Requested delivery date & time: $delivery',
                   style: styles.bodySmall.copyWith(fontSize: 11.sp),
                 ),
               ],
@@ -815,14 +1158,12 @@ Widget _detailLine(
 
       Expanded(
         flex: 2,
-        child: Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: styles.bodyMedium.copyWith(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w800,
-            ),
+        child: Text(
+          value,
+          textAlign: TextAlign.right,
+          style: styles.bodyMedium.copyWith(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -830,6 +1171,7 @@ Widget _detailLine(
   ),
 );
 
+// ignore: unused_element
 Widget _activityRow(JobComment comment, dynamic styles) => Padding(
   padding: EdgeInsets.only(bottom: 12.h),
   child: Row(
@@ -891,6 +1233,8 @@ const _workflowStatuses = [
   'Cancelled',
 ];
 
+// Legacy cancellation UI retained pending removal of unused mock activity code.
+// ignore: unused_element
 Future<void> _showCancelReasonPicker(BuildContext context, dynamic styles) {
   return showModalBottomSheet(
     context: context,
@@ -1000,21 +1344,18 @@ Future<void> _showStatusPicker(
 Future<void> _showEditJobForm(
   BuildContext context,
   dynamic styles,
-  String workflowStatus,
   String arrival,
-  String delivery,
-  ValueChanged<String> onStatusChanged,
-  ValueChanged<String> onArrivalChanged,
-  ValueChanged<String> onDeliveryChanged,
-) => showModalBottomSheet(
+  String delivery, {
+  required Future<bool> Function(String arrival, String delivery) onSave,
+}) => showModalBottomSheet(
   context: context,
   isScrollControlled: true,
   backgroundColor: TmsColors.canvas,
   showDragHandle: true,
   builder: (sheetContext) {
-    var status = workflowStatus;
     var arrivalValue = arrival;
     var deliveryValue = delivery;
+    var isSaving = false;
     return StatefulBuilder(
       builder: (context, setModalState) => SafeArea(
         child: Padding(
@@ -1031,65 +1372,60 @@ Future<void> _showEditJobForm(
               Text('EDIT JOB REQUEST', style: styles.titleLarge),
               SizedBox(height: 4.h),
               Text(
-                'Update the activity status and requested schedule.',
+                'Update the requested arrival and delivery schedule.',
                 style: styles.bodySmall,
               ),
               SizedBox(height: 18.h),
-              Text(
-                'ACTIVITY STATUS',
-                style: styles.labelSmall.copyWith(letterSpacing: 1.1),
-              ),
-              SizedBox(height: 7.h),
-              DropdownButtonFormField<String>(
-                initialValue: status,
-                isExpanded: true,
-                decoration: _formDecoration(),
-                items: _workflowStatuses
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(item, style: styles.bodyMedium),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setModalState(() => status = value ?? status),
-              ),
-              SizedBox(height: 15.h),
               Text(
                 'REQUESTED SCHEDULE',
                 style: styles.labelSmall.copyWith(letterSpacing: 1.1),
               ),
               SizedBox(height: 7.h),
-              _dateField(context, styles, 'Arrival', arrivalValue, () async {
-                final date = await _pickDate(context, 'REQUESTED ARRIVAL DATE');
-                if (date != null) {
-                  setModalState(
-                    () => arrivalValue = _formatDate(date, '09:00'),
+              _dateField(
+                context,
+                styles,
+                'Requested arrival date & time',
+                arrivalValue,
+                () async {
+                  final value = await _pickDateTime(
+                    context,
+                    initialValue: arrivalValue,
                   );
-                }
-              }),
+                  if (value != null) {
+                    setModalState(() => arrivalValue = value);
+                  }
+                },
+              ),
               SizedBox(height: 8.h),
-              _dateField(context, styles, 'Delivery', deliveryValue, () async {
-                final date = await _pickDate(
-                  context,
-                  'REQUESTED DELIVERY DATE',
-                );
-                if (date != null) {
-                  setModalState(
-                    () => deliveryValue = _formatDate(date, '16:30'),
+              _dateField(
+                context,
+                styles,
+                'Requested delivery date & time',
+                deliveryValue,
+                () async {
+                  final value = await _pickDateTime(
+                    context,
+                    initialValue: deliveryValue,
                   );
-                }
-              }),
+                  if (value != null) {
+                    setModalState(() => deliveryValue = value);
+                  }
+                },
+              ),
               SizedBox(height: 20.h),
               TmsButton(
-                label: 'Save changes',
-                onPressed: () {
-                  onStatusChanged(status);
-                  onArrivalChanged(arrivalValue);
-                  onDeliveryChanged(deliveryValue);
-                  Navigator.pop(sheetContext);
-                },
+                label: isSaving ? 'Saving...' : 'Save changes',
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        setModalState(() => isSaving = true);
+                        final saved = await onSave(arrivalValue, deliveryValue);
+                        if (!sheetContext.mounted) return;
+                        if (saved) Navigator.pop(sheetContext);
+                        if (sheetContext.mounted) {
+                          setModalState(() => isSaving = false);
+                        }
+                      },
               ),
             ],
           ),
@@ -1097,20 +1433,6 @@ Future<void> _showEditJobForm(
       ),
     );
   },
-);
-
-InputDecoration _formDecoration() => InputDecoration(
-  filled: true,
-  fillColor: Colors.white,
-  contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
-  border: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(9.r),
-    borderSide: const BorderSide(color: TmsColors.line),
-  ),
-  enabledBorder: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(9.r),
-    borderSide: const BorderSide(color: TmsColors.line),
-  ),
 );
 
 Widget _dateField(
@@ -1158,31 +1480,42 @@ Widget _dateField(
   ),
 );
 
-Future<DateTime?> _pickDate(BuildContext context, String label) =>
-    showDatePicker(
-      context: context,
-      initialDate: DateTime(2026, 8, 6),
-      firstDate: DateTime(2026),
-      lastDate: DateTime(2027, 12),
-      helpText: label,
-    );
-
-String _formatDate(DateTime date, String time) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${date.day} ${months[date.month - 1]}, $time';
+Future<String?> _pickDateTime(
+  BuildContext context, {
+  required String initialValue,
+}) async {
+  var selected =
+      DateTime.tryParse(initialValue.replaceFirst(' ', 'T')) ?? DateTime.now();
+  final value = await showCupertinoModalPopup<DateTime>(
+    context: context,
+    builder: (pickerContext) => Container(
+      height: 300,
+      color: Colors.white,
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => Navigator.pop(pickerContext, selected),
+              child: const Text('Done'),
+            ),
+          ),
+          Expanded(
+            child: CupertinoDatePicker(
+              mode: CupertinoDatePickerMode.dateAndTime,
+              initialDateTime: selected,
+              onDateTimeChanged: (value) => selected = value,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (value == null) return null;
+  return '${value.year}-${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')} '
+      '${value.hour.toString().padLeft(2, '0')}:'
+      '${value.minute.toString().padLeft(2, '0')}';
 }
 
 Color _statusColor(String status) {

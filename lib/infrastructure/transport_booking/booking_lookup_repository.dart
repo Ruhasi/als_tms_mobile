@@ -19,6 +19,12 @@ class BookingLookupRepository {
       _lookup('$_base/locations', query);
   Future<Either<NetworkFailure, List<LookupItem>>> departments() =>
       _lookup('$_base/departments', '');
+  Future<Either<NetworkFailure, List<LookupItem>>> packageTypes() =>
+      _lookup('$_base/package-types', '');
+  Future<Either<NetworkFailure, List<LookupItem>>> volumeUnits() =>
+      _lookup('$_base/volume-units', '');
+  Future<Either<NetworkFailure, List<LookupItem>>> weightUnits() =>
+      _lookup('$_base/weight-units', '');
   Future<Either<NetworkFailure, List<LookupItem>>> vehicleTypes(
     int customerSeq,
   ) => _lookup('$_base/customers/$customerSeq/vehicle-types', '');

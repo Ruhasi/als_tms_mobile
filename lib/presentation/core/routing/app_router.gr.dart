@@ -288,6 +288,56 @@ class VehicleAssignmentRouteArgs {
 }
 
 /// generated route for
+/// [ViaLocationPage]
+class ViaLocationRoute extends PageRouteInfo<ViaLocationRouteArgs> {
+  ViaLocationRoute({
+    Key? key,
+    required int unloadingOrder,
+    List<PageRouteInfo>? children,
+  }) : super(
+         ViaLocationRoute.name,
+         args: ViaLocationRouteArgs(key: key, unloadingOrder: unloadingOrder),
+         initialChildren: children,
+       );
+
+  static const String name = 'ViaLocationRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<ViaLocationRouteArgs>();
+      return ViaLocationPage(
+        key: args.key,
+        unloadingOrder: args.unloadingOrder,
+      );
+    },
+  );
+}
+
+class ViaLocationRouteArgs {
+  const ViaLocationRouteArgs({this.key, required this.unloadingOrder});
+
+  final Key? key;
+
+  final int unloadingOrder;
+
+  @override
+  String toString() {
+    return 'ViaLocationRouteArgs{key: $key, unloadingOrder: $unloadingOrder}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ViaLocationRouteArgs) return false;
+    return key == other.key && unloadingOrder == other.unloadingOrder;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ unloadingOrder.hashCode;
+}
+
+/// generated route for
 /// [WeeklyStatusPage]
 class WeeklyStatusRoute extends PageRouteInfo<void> {
   const WeeklyStatusRoute({List<PageRouteInfo>? children})
