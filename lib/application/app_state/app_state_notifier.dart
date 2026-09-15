@@ -13,15 +13,19 @@ final class AppStateNotifier extends Notifier<AppState> {
   }
 
   void setAccessToken(String token) {
-    state = state.copyWith(accessToken: token);
+    state = state.copyWith(accessToken: token, sessionExpired: false);
   }
 
   void setUserProfile(MobileUserProfile profile) {
     state = state.copyWith(userProfile: profile);
   }
 
-  void clearSession() {
-    state = state.copyWith(accessToken: null, userProfile: null);
+  void clearSession({bool sessionExpired = false}) {
+    state = state.copyWith(
+      accessToken: null,
+      userProfile: null,
+      sessionExpired: sessionExpired,
+    );
   }
 
   void setLocale(String localeCode) {

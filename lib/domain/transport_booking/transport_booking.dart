@@ -9,6 +9,7 @@ class TransportBooking {
     required this.requestedDeliveryTime,
     required this.currentStatus,
     required this.vehicleTypeSeq,
+    required this.isFlagged,
   });
 
   final int transportBookingSeq;
@@ -20,6 +21,7 @@ class TransportBooking {
   final String requestedDeliveryTime;
   final int currentStatus;
   final int? vehicleTypeSeq;
+  final bool isFlagged;
 
   factory TransportBooking.fromJson(Map<String, dynamic> json) {
     return TransportBooking(
@@ -32,6 +34,9 @@ class TransportBooking {
       requestedDeliveryTime: json['requestedDeliveryTime'] as String? ?? '',
       currentStatus: _asInt(json['currentStatus']),
       vehicleTypeSeq: _asNullableInt(json['vehicleTypeSeq']),
+      isFlagged: _isJobFlagged(
+        json['jobFlag'] ?? json['isFlagged'] ?? json['isFlaged'],
+      ),
     );
   }
 }

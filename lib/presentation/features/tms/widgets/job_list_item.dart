@@ -149,8 +149,13 @@ class TransportBookingListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = _bookingStatus(booking.currentStatus);
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18.r),
+      color: booking.isFlagged ? const Color(0xFFFFF3F3) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18.r),
+        side: BorderSide(
+          color: booking.isFlagged ? TmsColors.red : Colors.transparent,
+        ),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18.r),
@@ -170,6 +175,33 @@ class TransportBookingListItem extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (booking.isFlagged) ...[
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 7.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: TmsColors.red,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.flag, color: Colors.white, size: 10.sp),
+                          SizedBox(width: 3.w),
+                          Text(
+                            'FLAGGED',
+                            style: styles.labelSmall.copyWith(
+                              color: Colors.white,
+                              fontSize: 8.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 6.w),
+                  ],
                   Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: 8.w,
@@ -267,20 +299,20 @@ class TransportBookingListItem extends StatelessWidget {
 }
 
 ({String label, Color color}) _bookingStatus(int status) => switch (status) {
-  1 => (label: 'Pending for Approval', color: TmsColors.gold),
+  1 => (label: 'Pending Approval', color: TmsColors.gold),
   2 => (label: 'Approved', color: TmsColors.red),
   3 => (label: 'Accepted', color: TmsColors.orange),
   4 => (label: 'Attended', color: TmsColors.blue),
-  5 => (label: 'Arrived At Pickup', color: TmsColors.gold),
-  6 => (label: 'Departed From Pickup', color: TmsColors.orange),
-  7 => (label: 'Arrived at Delivery', color: TmsColors.green),
+  5 => (label: 'Arrived at Pickup', color: TmsColors.gold),
+  6 => (label: 'Departed from Pickup', color: TmsColors.orange),
+  7 => (label: 'Job Completed', color: TmsColors.green),
   8 => (label: 'Job Completed', color: TmsColors.green),
   9 => (label: 'Km Confirmed', color: TmsColors.green),
   10 => (label: 'Charged Submitted', color: TmsColors.green),
   11 => (label: 'Job Confirmed', color: TmsColors.green),
   12 => (label: 'Finance Confirmed', color: TmsColors.green),
   13 => (label: 'Job Closed', color: TmsColors.green),
-  101 => (label: 'Cancelled', color: TmsColors.muted),
+  101 => (label: 'Cancelled Job', color: TmsColors.muted),
   102 => (label: 'Rejected', color: TmsColors.muted),
   103 => (label: 'Job Dispute', color: TmsColors.red),
   104 => (label: 'Finance Dispute', color: TmsColors.red),

@@ -4,16 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:omni_datetime_picker/omni_datetime_picker.dart';
 
 import '../../../../application/dashboard/mobile_dashboard_providers.dart';
 import '../../../../application/transport_booking/booking_lookup_providers.dart';
 import '../../../../domain/tms/models/tms_models.dart';
 import '../../../../domain/transport_booking/create_transport_booking_request.dart';
+import '../../../../domain/transport_booking/lookup_item.dart';
 import '../../../../domain/transport_booking/transport_booking.dart';
 import '../../../../domain/transport_booking/vehicle_assignment.dart';
+import '../../../../infrastructure/transport_booking/booking_lookup_repository.dart';
 import '../../../core/misc/text_style_provider.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/theme/tms_theme.dart';
+import '../../../core/widgets/booking_lookup_sheet.dart';
 import '../../../core/widgets/tms_widgets.dart';
 import '../widgets/vehicle_assignment_sheet.dart';
 
@@ -55,6 +59,8 @@ class JobDetailPage extends HookConsumerWidget {
                   arrival.value ?? booking.requestedArrivalTime;
               final requestedDelivery =
                   delivery.value ?? booking.requestedDeliveryTime;
+              final canEdit =
+                  booking.currentStatus == 3 || booking.currentStatus == 4;
               final needsVehicle = booking.currentStatus == 3;
               final hasVehicleAssignment =
                   booking.currentStatus >= 4 && booking.currentStatus <= 13;
@@ -65,11 +71,12 @@ class JobDetailPage extends HookConsumerWidget {
                   assignedDriver.value ??
                   (needsVehicle ? 'Not assigned' : 'Assigned');
 
-              Future<void> assignVehicle() async {
+              Future<void> assignVehicle({bool isEditing = false}) async {
                 final result = await context.router
                     .push<VehicleAssignmentResult>(
                       VehicleAssignmentRoute(
                         customerSeq: booking.customerSeq,
+                        vehicleType: booking.vehicleTypeName,
                         vehicle: isVehicleUnassigned(vehicle) ? '' : vehicle,
                         driver: driver.isEmpty || driver == 'Not assigned'
                             ? ''
@@ -99,7 +106,7 @@ class JobDetailPage extends HookConsumerWidget {
                     driverSeq: result.driverSeq!,
                     helperSeq: result.helperSeq,
                     trailerSeq: result.trailerSeq,
-                    payableVehicleTypeSeq: result.payableVehicleTypeSeq,
+                    payableVehicleTypeSeq: booking.vehicleTypeSeq,
                   ),
                 );
                 if (!context.mounted) return;
@@ -117,9 +124,15 @@ class JobDetailPage extends HookConsumerWidget {
                 await showDialog<void>(
                   context: context,
                   builder: (dialogContext) => AlertDialog(
-                    title: const Text('Vehicle assigned'),
-                    content: const Text(
-                      'The vehicle assignment was saved successfully.',
+                    title: Text(
+                      isEditing
+                          ? 'Vehicle assignment updated'
+                          : 'Vehicle assigned',
+                    ),
+                    content: Text(
+                      isEditing
+                          ? 'The vehicle and driver were updated successfully.'
+                          : 'The vehicle assignment was saved successfully.',
                     ),
                     actions: [
                       TextButton(
@@ -147,8 +160,14 @@ class JobDetailPage extends HookConsumerWidget {
                     isScrollControlled: true,
                     backgroundColor: TmsColors.canvas,
                     showDragHandle: true,
-                    builder: (_) =>
-                        _vehicleAssignmentDetailsSheet(details, styles),
+                    builder: (sheetContext) => _vehicleAssignmentDetailsSheet(
+                      details,
+                      styles,
+                      onEdit: () {
+                        Navigator.pop(sheetContext);
+                        assignVehicle(isEditing: true);
+                      },
+                    ),
                   ),
                 );
               }
@@ -159,8 +178,94 @@ class JobDetailPage extends HookConsumerWidget {
                   isScrollControlled: true,
                   backgroundColor: TmsColors.canvas,
                   showDragHandle: true,
-                  builder: (_) =>
-                      _viaLocationDetailsSheet(booking.viaLocations, styles),
+                  builder: (sheetContext) => _viaLocationDetailsSheet(
+                    booking.viaLocations,
+                    styles,
+                    onDelete: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Delete all via locations?'),
+                          content: const Text(
+                            'This will remove every via location from this job request.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, true),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: TmsColors.red,
+                              ),
+                              child: const Text('Delete all'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (!context.mounted || confirmed != true) return false;
+
+                      showDialog<void>(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const PopScope(
+                          canPop: false,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                      );
+                      final result = await bookingRepository.deleteViaLocations(
+                        booking.transportBookingSeq,
+                      );
+                      if (!context.mounted) return false;
+                      Navigator.of(context, rootNavigator: true).pop();
+                      return result.fold(
+                        (failure) async {
+                          await showDialog<void>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              title: const Text(
+                                'Unable to delete via locations',
+                              ),
+                              content: Text(failure.message),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                          return false;
+                        },
+                        (_) async {
+                          ref.invalidate(transportBookingDetailProvider(jobId));
+                          ref.invalidate(transportBookingsProvider);
+                          await showDialog<void>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              title: const Text('Via locations deleted'),
+                              content: const Text(
+                                'All via locations were removed successfully.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (sheetContext.mounted) {
+                            Navigator.pop(sheetContext);
+                          }
+                          return true;
+                        },
+                      );
+                    },
+                  ),
                 );
               }
 
@@ -414,7 +519,7 @@ class JobDetailPage extends HookConsumerWidget {
                                 count: booking.viaLocations.length,
                                 onView: viewViaLocations,
                               ),
-                            ] else ...[
+                            ] else if (canEdit) ...[
                               SizedBox(height: 13.h),
                               _addViaLocationsBanner(
                                 styles,
@@ -489,69 +594,114 @@ class JobDetailPage extends HookConsumerWidget {
                             // ],
                             Row(
                               children: [
-                                Expanded(
-                                  child: TmsButton(
-                                    dark: true,
-                                    label: 'Edit',
-                                    onPressed: () => _showEditJobForm(
-                                      context,
-                                      styles,
-                                      requestedArrival,
-                                      requestedDelivery,
-                                      onSave:
-                                          (
-                                            updatedArrival,
-                                            updatedDelivery,
-                                          ) async {
-                                            final result =
-                                                await bookingRepository
-                                                    .updateSchedule(
-                                                      booking: booking,
-                                                      requestedArrivalTime:
-                                                          updatedArrival,
-                                                      requestedDeliveryTime:
-                                                          updatedDelivery,
-                                                    );
-                                            if (!context.mounted) return false;
-                                            return result.fold(
-                                              (failure) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      failure.message,
+                                if (canEdit)
+                                  Expanded(
+                                    child: TmsButton(
+                                      dark: true,
+                                      label: 'Edit',
+                                      onPressed: () => _showEditJobForm(
+                                        context,
+                                        styles,
+                                        booking: booking,
+                                        lookups: ref.read(
+                                          bookingLookupRepositoryProvider,
+                                        ),
+                                        onSave: (update) async {
+                                          final result = await bookingRepository
+                                              .updateSchedule(
+                                                booking: booking,
+                                                department: update.department,
+                                                customer: update.customer,
+                                                shipper: update.shipper,
+                                                invoiceCustomer:
+                                                    update.invoiceCustomer,
+                                                invoiceStatus:
+                                                    update.invoiceStatus,
+                                                vehicleType: update.vehicleType,
+                                                pickupLocation:
+                                                    update.pickupLocation,
+                                                requestedArrivalTime:
+                                                    update.requestedArrivalTime,
+                                                deliveryLocation:
+                                                    update.deliveryLocation,
+                                                requestedDeliveryTime: update
+                                                    .requestedDeliveryTime,
+                                              );
+                                          if (!context.mounted) return false;
+                                          return result.fold(
+                                            (failure) async {
+                                              await showDialog<void>(
+                                                context: context,
+                                                builder: (dialogContext) =>
+                                                    AlertDialog(
+                                                      title: const Text(
+                                                        'Unable to update job',
+                                                      ),
+                                                      content: Text(
+                                                        failure.message,
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                dialogContext,
+                                                              ),
+                                                          child: const Text(
+                                                            'OK',
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                  ),
-                                                );
-                                                return false;
-                                              },
-                                              (_) {
-                                                arrival.value = updatedArrival;
-                                                delivery.value =
-                                                    updatedDelivery;
-                                                ref.invalidate(
-                                                  transportBookingDetailProvider(
-                                                    jobId,
-                                                  ),
-                                                );
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Requested schedule updated.',
+                                              );
+                                              return false;
+                                            },
+                                            (_) async {
+                                              arrival.value =
+                                                  update.requestedArrivalTime;
+                                              delivery.value =
+                                                  update.requestedDeliveryTime;
+                                              ref.invalidate(
+                                                transportBookingDetailProvider(
+                                                  jobId,
+                                                ),
+                                              );
+                                              ref.invalidate(
+                                                transportBookingsProvider,
+                                              );
+                                              ref.invalidate(
+                                                mobileDashboardProvider,
+                                              );
+                                              await showDialog<void>(
+                                                context: context,
+                                                builder: (dialogContext) =>
+                                                    AlertDialog(
+                                                      title: const Text(
+                                                        'Job request updated',
+                                                      ),
+                                                      content: const Text(
+                                                        'The job request was updated successfully.',
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                dialogContext,
+                                                              ),
+                                                          child: const Text(
+                                                            'OK',
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                  ),
-                                                );
-                                                return true;
-                                              },
-                                            );
-                                          },
+                                              );
+                                              return true;
+                                            },
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ),
-                                ),
-                                SizedBox(width: 10.w),
+                                if (canEdit) SizedBox(width: 10.w),
                                 Expanded(
                                   child: SizedBox(
                                     height: 48.h,
@@ -806,18 +956,28 @@ Widget _addViaLocationsBanner(
 
 Widget _viaLocationDetailsSheet(
   List<ViaLocationDetail> locations,
-  dynamic styles,
-) => SafeArea(
+  dynamic styles, {
+  required Future<bool> Function() onDelete,
+}) => SafeArea(
   child: Padding(
     padding: EdgeInsets.fromLTRB(18.w, 4.h, 18.w, 24.h),
     child: SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('VIA LOCATIONS', style: styles.titleMedium),
+          Row(
+            children: [
+              Expanded(child: Text('VIA LOCATIONS', style: styles.titleMedium)),
+              IconButton(
+                tooltip: 'Delete all via locations',
+                onPressed: () async => onDelete(),
+                icon: const Icon(CupertinoIcons.delete, color: TmsColors.red),
+              ),
+            ],
+          ),
           SizedBox(height: 4.h),
           Text(
-            '${locations.length} scheduled ${locations.length == 1 ? 'drop' : 'drops'}',
+            '${locations.length} scheduled via ${locations.length == 1 ? 'location' : 'locations'}',
             style: styles.bodySmall,
           ),
           SizedBox(height: 16.h),
@@ -864,8 +1024,6 @@ Widget _viaLocationDetailsSheet(
                       location.dropPickStatusDescription,
                       styles,
                     ),
-                  if (location.referenceNo.isNotEmpty)
-                    _detailLine('Reference', location.referenceNo, styles),
                   if (location.contactPerson.isNotEmpty)
                     _detailLine(
                       'Contact person',
@@ -874,28 +1032,6 @@ Widget _viaLocationDetailsSheet(
                     ),
                   if (location.contactNo.isNotEmpty)
                     _detailLine('Contact number', location.contactNo, styles),
-                  if (location.pieces != null)
-                    _detailLine('Pieces', '${location.pieces}', styles),
-                  if (location.cbm != null)
-                    _detailLine('CBM', '${location.cbm}', styles),
-                  if (location.volume != null)
-                    _detailLine(
-                      'Volume',
-                      '${location.volume}${location.volumeUnitName.isEmpty ? '' : ' ${location.volumeUnitName}'}',
-                      styles,
-                    ),
-                  if (location.weight != null)
-                    _detailLine(
-                      'Weight',
-                      '${location.weight}${location.weightUnitName.isEmpty ? '' : ' ${location.weightUnitName}'}',
-                      styles,
-                    ),
-                  if (location.packageTypeName.isNotEmpty)
-                    _detailLine(
-                      'Package type',
-                      location.packageTypeName,
-                      styles,
-                    ),
                 ],
               ),
             ),
@@ -908,8 +1044,9 @@ Widget _viaLocationDetailsSheet(
 
 Widget _vehicleAssignmentDetailsSheet(
   VehicleAssignmentDetails details,
-  dynamic styles,
-) => SafeArea(
+  dynamic styles, {
+  required VoidCallback onEdit,
+}) => SafeArea(
   child: Padding(
     padding: EdgeInsets.fromLTRB(18.w, 4.h, 18.w, 24.h),
     child: SingleChildScrollView(
@@ -946,6 +1083,8 @@ Widget _vehicleAssignmentDetailsSheet(
           ),
           if (details.viaLocationString.isNotEmpty)
             _detailLine('Via locations', details.viaLocationString, styles),
+          SizedBox(height: 24.h),
+          TmsButton(label: 'Edit assignment', onPressed: onEdit),
         ],
       ),
     ),
@@ -1343,88 +1482,437 @@ Future<void> _showStatusPicker(
 
 Future<void> _showEditJobForm(
   BuildContext context,
-  dynamic styles,
-  String arrival,
-  String delivery, {
-  required Future<bool> Function(String arrival, String delivery) onSave,
+  dynamic styles, {
+  required TransportBookingDetail booking,
+  required BookingLookupRepository lookups,
+  required Future<bool> Function(_EditJobUpdate update) onSave,
 }) => showModalBottomSheet(
   context: context,
   isScrollControlled: true,
   backgroundColor: TmsColors.canvas,
   showDragHandle: true,
-  builder: (sheetContext) {
-    var arrivalValue = arrival;
-    var deliveryValue = delivery;
-    var isSaving = false;
-    return StatefulBuilder(
-      builder: (context, setModalState) => SafeArea(
+  builder: (_) => _EditJobForm(
+    styles: styles,
+    booking: booking,
+    lookups: lookups,
+    onSave: onSave,
+  ),
+);
+
+class _EditJobUpdate {
+  const _EditJobUpdate({
+    required this.department,
+    required this.customer,
+    required this.shipper,
+    required this.invoiceCustomer,
+    required this.invoiceStatus,
+    required this.vehicleType,
+    required this.pickupLocation,
+    required this.requestedArrivalTime,
+    required this.deliveryLocation,
+    required this.requestedDeliveryTime,
+  });
+
+  final LookupItem department;
+  final LookupItem customer;
+  final LookupItem shipper;
+  final LookupItem invoiceCustomer;
+  final int invoiceStatus;
+  final LookupItem vehicleType;
+  final LookupItem pickupLocation;
+  final String requestedArrivalTime;
+  final LookupItem deliveryLocation;
+  final String requestedDeliveryTime;
+}
+
+class _EditJobForm extends StatefulWidget {
+  const _EditJobForm({
+    required this.styles,
+    required this.booking,
+    required this.lookups,
+    required this.onSave,
+  });
+
+  final dynamic styles;
+  final TransportBookingDetail booking;
+  final BookingLookupRepository lookups;
+  final Future<bool> Function(_EditJobUpdate update) onSave;
+
+  @override
+  State<_EditJobForm> createState() => _EditJobFormState();
+}
+
+class _EditJobFormState extends State<_EditJobForm> {
+  late LookupItem _department;
+  late LookupItem _customer;
+  late LookupItem _shipper;
+  late LookupItem _invoiceCustomer;
+  late LookupItem _vehicleType;
+  late LookupItem _pickupLocation;
+  late LookupItem _deliveryLocation;
+  late String _arrival;
+  late String _delivery;
+  late int _invoiceStatus;
+  List<LookupItem> _departments = const [];
+  List<LookupItem> _customers = const [];
+  List<LookupItem> _shippers = const [];
+  List<LookupItem> _locations = const [];
+  List<LookupItem> _vehicleTypes = const [];
+  var _isLoading = true;
+  var _isSaving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final booking = widget.booking;
+    _department = LookupItem(
+      seq: booking.departmentSeq,
+      name: booking.departmentName,
+      code: '',
+    );
+    _customer = LookupItem(
+      seq: booking.customerSeq,
+      name: booking.customerName,
+      code: '',
+    );
+    _shipper = LookupItem(
+      seq: booking.shipperSeq,
+      name: booking.shipperName,
+      code: '',
+    );
+    _invoiceCustomer = LookupItem(
+      seq: booking.invoiceCustomerSeq,
+      name: booking.customerName,
+      code: '',
+    );
+    _vehicleType = LookupItem(
+      seq: booking.vehicleTypeSeq,
+      name: booking.vehicleTypeName,
+      code: '',
+    );
+    _pickupLocation = LookupItem(
+      seq: booking.pickupLocationSeq,
+      name: booking.pickupLocationName.isEmpty
+          ? booking.pickupLocationAddress
+          : booking.pickupLocationName,
+      code: '',
+    );
+    _deliveryLocation = LookupItem(
+      seq: booking.deliveryLocationSeq,
+      name: booking.deliveryLocationName.isEmpty
+          ? booking.deliveryLocationAddress
+          : booking.deliveryLocationName,
+      code: '',
+    );
+    _arrival = booking.requestedArrivalTime;
+    _delivery = booking.requestedDeliveryTime;
+    _invoiceStatus = booking.invoiceStatus;
+    _loadLookups();
+  }
+
+  Future<void> _loadLookups() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    final results = await Future.wait([
+      widget.lookups.departments(),
+      widget.lookups.customers(''),
+      widget.lookups.shippers(''),
+      widget.lookups.locations(''),
+      widget.lookups.vehicleTypes(_customer.seq),
+    ]);
+    if (!mounted) return;
+    String? error;
+    for (final result in results) {
+      result.fold((failure) => error ??= failure.message, (_) {});
+    }
+    if (error != null) {
+      setState(() {
+        _isLoading = false;
+        _error = error;
+      });
+      return;
+    }
+    setState(() {
+      _departments = results[0].getOrElse(() => const []);
+      _customers = results[1].getOrElse(() => const []);
+      _shippers = results[2].getOrElse(() => const []);
+      _locations = results[3].getOrElse(() => const []);
+      _vehicleTypes = results[4].getOrElse(() => const []);
+      _department = _fromItems(_departments, _department);
+      _customer = _fromItems(_customers, _customer);
+      _shipper = _fromItems(_shippers, _shipper);
+      _invoiceCustomer = _fromItems(_customers, _invoiceCustomer);
+      _vehicleType = _fromItems(_vehicleTypes, _vehicleType);
+      _pickupLocation = _fromItems(_locations, _pickupLocation);
+      _deliveryLocation = _fromItems(_locations, _deliveryLocation);
+      _isLoading = false;
+    });
+  }
+
+  LookupItem _fromItems(List<LookupItem> items, LookupItem current) {
+    for (final item in items) {
+      if (item.seq == current.seq) return item;
+    }
+    return current;
+  }
+
+  Future<void> _select(
+    String title,
+    LookupSearch search,
+    List<LookupItem> initialItems,
+    ValueChanged<LookupItem> onSelected,
+  ) async {
+    final selected = await showBookingLookupSheet(
+      context,
+      title: title,
+      search: search,
+      initialItems: initialItems,
+    );
+    if (!mounted || selected == null) return;
+    onSelected(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SafeArea(
+        child: SizedBox(
+          height: 260,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+    if (_error != null) {
+      return SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            18.w,
-            4.h,
-            18.w,
-            18.h + MediaQuery.viewInsetsOf(context).bottom,
+          padding: EdgeInsets.all(18.w),
+          child: SizedBox(
+            height: 260,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(_error!, textAlign: TextAlign.center),
+                SizedBox(height: 16.h),
+                TmsButton(label: 'Try again', onPressed: _loadLookups),
+              ],
+            ),
           ),
+        ),
+      );
+    }
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          18.w,
+          4.h,
+          18.w,
+          18.h + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .78,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('EDIT JOB REQUEST', style: styles.titleLarge),
-              SizedBox(height: 4.h),
-              Text(
-                'Update the requested arrival and delivery schedule.',
-                style: styles.bodySmall,
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: 'Back',
+                  ),
+                  SizedBox(width: 4.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'EDIT JOB REQUEST',
+                          style: widget.styles.titleLarge,
+                        ),
+                        SizedBox(height: 4.h),
+                        Text(
+                          'Update the job request details.',
+                          style: widget.styles.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 18.h),
-              Text(
-                'REQUESTED SCHEDULE',
-                style: styles.labelSmall.copyWith(letterSpacing: 1.1),
+              SizedBox(height: 14.h),
+              Expanded(
+                child: ListView(
+                  children: [
+                    _editSectionLabel('PARTIES'),
+                    SelectorTile(
+                      label: 'Department *',
+                      value: _department.name,
+                      onTap: () => _select(
+                        'Department',
+                        (_) => widget.lookups.departments(),
+                        _departments,
+                        (value) => setState(() => _department = value),
+                      ),
+                    ),
+                    _editGap(),
+                    SelectorTile(
+                      label: 'Customer *',
+                      value: _customer.name,
+                      onTap: () => _select(
+                        'Customer',
+                        widget.lookups.customers,
+                        _customers,
+                        (value) => setState(() {
+                          _customer = value;
+                          _vehicleType = LookupItem(
+                            seq: 0,
+                            name: 'Select vehicle type',
+                            code: '',
+                          );
+                          _vehicleTypes = const [];
+                        }),
+                      ),
+                    ),
+                    _editGap(),
+                    SelectorTile(
+                      label: 'Shipper *',
+                      value: _shipper.name,
+                      onTap: () => _select(
+                        'Shipper',
+                        widget.lookups.shippers,
+                        _shippers,
+                        (value) => setState(() => _shipper = value),
+                      ),
+                    ),
+                    _editGap(),
+                    SelectorTile(
+                      label: 'Invoice customer *',
+                      value: _invoiceCustomer.name,
+                      onTap: () => _select(
+                        'Invoice customer',
+                        widget.lookups.customers,
+                        _customers,
+                        (value) => setState(() => _invoiceCustomer = value),
+                      ),
+                    ),
+                    _editGap(),
+                    SelectorTile(
+                      label: 'Invoice status *',
+                      value: _invoiceStatus == 1 ? 'Yes' : 'No',
+                      onTap: () async {
+                        final option = await showOptionSheet(
+                          context,
+                          title: 'Invoice status',
+                          options: const [
+                            TmsOption(id: '0', title: 'No', subtitle: ''),
+                            TmsOption(id: '1', title: 'Yes', subtitle: ''),
+                          ],
+                        );
+                        if (option != null) {
+                          setState(() => _invoiceStatus = int.parse(option.id));
+                        }
+                      },
+                    ),
+                    _editSectionLabel('ROUTE'),
+                    SelectorTile(
+                      label: 'Vehicle type *',
+                      value: _vehicleType.name,
+                      onTap: () async {
+                        final result = await widget.lookups.vehicleTypes(
+                          _customer.seq,
+                        );
+                        if (!mounted) return;
+                        final items = result.getOrElse(() => const []);
+                        setState(() => _vehicleTypes = items);
+                        await _select(
+                          'Vehicle type',
+                          (_) => widget.lookups.vehicleTypes(_customer.seq),
+                          items,
+                          (value) => setState(() => _vehicleType = value),
+                        );
+                      },
+                    ),
+                    _editGap(),
+                    SelectorTile(
+                      label: 'Pickup location *',
+                      value: _pickupLocation.name,
+                      onTap: () => _select(
+                        'Pickup location',
+                        widget.lookups.locations,
+                        _locations,
+                        (value) => setState(() => _pickupLocation = value),
+                      ),
+                    ),
+                    _editGap(),
+                    _dateField(
+                      context,
+                      widget.styles,
+                      'Requested arrival date & time *',
+                      _arrival,
+                      () async {
+                        final value = await _pickDateTime(
+                          context,
+                          initialValue: _arrival,
+                        );
+                        if (value != null) setState(() => _arrival = value);
+                      },
+                    ),
+                    _editGap(),
+                    SelectorTile(
+                      label: 'Delivery location *',
+                      value: _deliveryLocation.name,
+                      onTap: () => _select(
+                        'Delivery location',
+                        widget.lookups.locations,
+                        _locations,
+                        (value) => setState(() => _deliveryLocation = value),
+                      ),
+                    ),
+                    _editGap(),
+                    _dateField(
+                      context,
+                      widget.styles,
+                      'Requested delivery date & time *',
+                      _delivery,
+                      () async {
+                        final value = await _pickDateTime(
+                          context,
+                          initialValue: _delivery,
+                        );
+                        if (value != null) setState(() => _delivery = value);
+                      },
+                    ),
+                  ],
+                ),
               ),
-              SizedBox(height: 7.h),
-              _dateField(
-                context,
-                styles,
-                'Requested arrival date & time',
-                arrivalValue,
-                () async {
-                  final value = await _pickDateTime(
-                    context,
-                    initialValue: arrivalValue,
-                  );
-                  if (value != null) {
-                    setModalState(() => arrivalValue = value);
-                  }
-                },
-              ),
-              SizedBox(height: 8.h),
-              _dateField(
-                context,
-                styles,
-                'Requested delivery date & time',
-                deliveryValue,
-                () async {
-                  final value = await _pickDateTime(
-                    context,
-                    initialValue: deliveryValue,
-                  );
-                  if (value != null) {
-                    setModalState(() => deliveryValue = value);
-                  }
-                },
-              ),
-              SizedBox(height: 20.h),
+              SizedBox(height: 16.h),
               TmsButton(
-                label: isSaving ? 'Saving...' : 'Save changes',
-                onPressed: isSaving
+                label: _isSaving ? 'Saving...' : 'Save changes',
+                onPressed: _isSaving || _vehicleType.seq == 0
                     ? null
                     : () async {
-                        setModalState(() => isSaving = true);
-                        final saved = await onSave(arrivalValue, deliveryValue);
-                        if (!sheetContext.mounted) return;
-                        if (saved) Navigator.pop(sheetContext);
-                        if (sheetContext.mounted) {
-                          setModalState(() => isSaving = false);
-                        }
+                        setState(() => _isSaving = true);
+                        final navigator = Navigator.of(context);
+                        final saved = await widget.onSave(
+                          _EditJobUpdate(
+                            department: _department,
+                            customer: _customer,
+                            shipper: _shipper,
+                            invoiceCustomer: _invoiceCustomer,
+                            invoiceStatus: _invoiceStatus,
+                            vehicleType: _vehicleType,
+                            pickupLocation: _pickupLocation,
+                            requestedArrivalTime: _arrival,
+                            deliveryLocation: _deliveryLocation,
+                            requestedDeliveryTime: _delivery,
+                          ),
+                        );
+                        if (!mounted) return;
+                        if (saved) navigator.pop();
+                        if (mounted) setState(() => _isSaving = false);
                       },
               ),
             ],
@@ -1432,8 +1920,22 @@ Future<void> _showEditJobForm(
         ),
       ),
     );
-  },
+  }
+}
+
+Widget _editSectionLabel(String label) => Padding(
+  padding: EdgeInsets.only(top: 4.h, bottom: 8.h),
+  child: Text(
+    label,
+    style: const TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w900,
+      color: TmsColors.muted,
+    ),
+  ),
 );
+
+Widget _editGap() => SizedBox(height: 8.h);
 
 Widget _dateField(
   BuildContext context,
@@ -1484,32 +1986,18 @@ Future<String?> _pickDateTime(
   BuildContext context, {
   required String initialValue,
 }) async {
-  var selected =
+  final initialDate =
       DateTime.tryParse(initialValue.replaceFirst(' ', 'T')) ?? DateTime.now();
-  final value = await showCupertinoModalPopup<DateTime>(
+  final now = DateTime.now();
+  final value = await showOmniDateTimePicker(
     context: context,
-    builder: (pickerContext) => Container(
-      height: 300,
-      color: Colors.white,
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => Navigator.pop(pickerContext, selected),
-              child: const Text('Done'),
-            ),
-          ),
-          Expanded(
-            child: CupertinoDatePicker(
-              mode: CupertinoDatePickerMode.dateAndTime,
-              initialDateTime: selected,
-              onDateTimeChanged: (value) => selected = value,
-            ),
-          ),
-        ],
-      ),
-    ),
+    type: OmniDateTimePickerType.dateAndTime,
+    initialDate: initialDate,
+    // Existing bookings may predate the current date and must remain editable.
+    firstDate: DateTime(2020),
+    lastDate: now.add(const Duration(days: 365)),
+    is24HourMode: true,
+    isShowSeconds: false,
   );
   if (value == null) return null;
   return '${value.year}-${value.month.toString().padLeft(2, '0')}-'

@@ -33,31 +33,18 @@ const _allStatusFilter = JobStatusFilter(
 
 const _statusFilters = <JobStatusFilter>[
   _allStatusFilter,
-  JobStatusFilter(
-    id: 1,
-    name: 'Pending for Approval',
-    color: Color(0xFFFFFFCC),
-  ),
+  JobStatusFilter(id: 1, name: 'Pending Approval', color: Color(0xFFFFFFCC)),
   JobStatusFilter(id: 2, name: 'Approved', color: Color(0xFFFF0000)),
   JobStatusFilter(id: 3, name: 'Accepted', color: Color(0xFFFF9999)),
   JobStatusFilter(id: 4, name: 'Attended', color: Color(0xFF00BFFF)),
-  JobStatusFilter(id: 5, name: 'Arrived At Pickup', color: Color(0xFFFFFF00)),
+  JobStatusFilter(id: 5, name: 'Arrived at Pickup', color: Color(0xFFFFFF00)),
   JobStatusFilter(
     id: 6,
-    name: 'Departed From Pickup',
+    name: 'Departed from Pickup',
     color: Color(0xFFFFCC00),
   ),
-  JobStatusFilter(id: 7, name: 'Arrived at Delivery', color: Color(0xFF66FF00)),
   JobStatusFilter(id: 8, name: 'Job Completed', color: Color(0xFF33CC33)),
-  JobStatusFilter(id: 9, name: 'Km Confirmed', color: Color(0xFF33CC33)),
-  JobStatusFilter(id: 10, name: 'Charged Submitted', color: Color(0xFF33CC33)),
-  JobStatusFilter(id: 11, name: 'Job Confirmed', color: Color(0xFF33CC33)),
-  JobStatusFilter(id: 12, name: 'Finance Confirmed', color: Color(0xFF33CC33)),
-  JobStatusFilter(id: 13, name: 'Job Closed', color: Color(0xFF33CC33)),
-  JobStatusFilter(id: 101, name: 'Cancelled', color: Color(0xFFFFEEEE)),
-  JobStatusFilter(id: 102, name: 'Rejected', color: Color(0xFFFFEEEE)),
-  JobStatusFilter(id: 103, name: 'Job Dispute', color: Color(0xFFFF0000)),
-  JobStatusFilter(id: 104, name: 'Finance Dispute', color: Color(0xFFFF0000)),
+  JobStatusFilter(id: 101, name: 'Cancelled Job', color: Color(0xFFFFEEEE)),
 ];
 
 @RoutePage()

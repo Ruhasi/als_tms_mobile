@@ -10,7 +10,7 @@ mixin AppColors {
   static const Color borderGrey = Color(0xffD8D8D8);
   static const Color primaryRed = Color(0xffED1C24);
   static const Color buttonDisabledGrey = Color(0xffD8D8D8);
-  static final Color textBlack = const Color(0xff000000).withOpacity(0.5);
+  static final Color textBlack = const Color(0xff000000).withValues(alpha: 0.5);
   static const Color textLinkBlack = Color(0xff00243C);
   static const Color backgroundLightGrey = Color(0xffF3F3F3);
   static const Color featureYellow = Color(0xffFFDA2D);

@@ -327,7 +327,7 @@ class VehicleAssignmentPage extends HookConsumerWidget {
               label: 'Save assignment',
               onPressed: () {
                 if (selectedVehicle.value == null ||
-                    (selectedDriver.value == null && driver.isEmpty)) {
+                    selectedDriver.value == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
@@ -344,7 +344,7 @@ class VehicleAssignmentPage extends HookConsumerWidget {
                         ? selectedVehicle.value!.code
                         : selectedVehicleType.value,
                     vehicle: selectedVehicle.value!.name,
-                    driver: selectedDriver.value?.name ?? driver,
+                    driver: selectedDriver.value!.name,
                     driverHelper: selectedHelper.value?.name ?? driverHelper,
                     secondaryDriver: selectedSecondaryDriver.value?.name ?? '',
                     secondaryHelper: selectedSecondaryHelper.value?.name ?? '',

@@ -4,7 +4,7 @@ description: "ALS TMS — transport management mobile app."
 
 publish_to: 'none' 
 
-version: 1.0.0+8
+version: 1.0.0+10
 
 environment:
   sdk: ^3.12.1
@@ -27,6 +27,7 @@ dependencies:
   flutter_screenutil_plus: ^1.6.0
   recaptcha_enterprise_flutter: ^18.9.1
   dartz: ^0.10.1
+  omni_datetime_picker: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -38,10 +39,20 @@ dev_dependencies:
   freezed: ^3.2.3
   json_serializable: ^6.14.1
   auto_route_generator: ^10.4.0
+  flutter_launcher_icons: ^0.14.4
 
 
 
 flutter:
 
   uses-material-design: true
+  assets:
+    - assets/images/als_login_background.jpg
+    - assets/images/als_logo.jpg
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/als_logo.jpg
+  min_sdk_android: 21
 

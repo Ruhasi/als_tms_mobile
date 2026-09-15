@@ -9,6 +9,7 @@ class AppState {
     this.isInitialized = false,
     this.accessToken,
     this.userProfile,
+    this.sessionExpired = false,
     this.localeCode = 'en',
     this.themeMode = AppThemeMode.system,
   });
@@ -16,6 +17,7 @@ class AppState {
   final bool isInitialized;
   final String? accessToken;
   final MobileUserProfile? userProfile;
+  final bool sessionExpired;
   final String localeCode;
   final AppThemeMode themeMode;
 
@@ -25,6 +27,7 @@ class AppState {
     bool? isInitialized,
     Object? accessToken = _unset,
     Object? userProfile = _unset,
+    bool? sessionExpired,
     String? localeCode,
     AppThemeMode? themeMode,
   }) {
@@ -36,6 +39,7 @@ class AppState {
       userProfile: identical(userProfile, _unset)
           ? this.userProfile
           : userProfile as MobileUserProfile?,
+      sessionExpired: sessionExpired ?? this.sessionExpired,
       localeCode: localeCode ?? this.localeCode,
       themeMode: themeMode ?? this.themeMode,
     );

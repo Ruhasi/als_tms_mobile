@@ -11,13 +11,43 @@ import 'theme/tms_theme.dart';
 ///
 /// Replace [home] with the first feature route when the project starts.
 class App extends HookConsumerWidget {
-  App({super.key}) : _router = AppRouter();
+  App({super.key})
+    : _router = AppRouter(),
+      _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   final AppRouter _router;
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appState = ref.watch(appStateNotifierProvider);
+    ref.listen(appStateNotifierProvider, (previous, next) {
+      if (next.sessionExpired && previous?.sessionExpired != true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final dialogContext = _scaffoldMessengerKey.currentContext;
+          if (dialogContext == null) return;
+          showDialog<void>(
+            context: dialogContext,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text('Session expired'),
+              content: const Text(
+                'Your session has expired. Please sign in again.',
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _router.replaceAll([const SignInRoute()]);
+                  },
+                  child: const Text('Go to login'),
+                ),
+              ],
+            ),
+          );
+        });
+      }
+    });
 
     return ScreenUtilPlusInit(
       designSize: const Size(360, 690),
@@ -27,6 +57,7 @@ class App extends HookConsumerWidget {
         return MaterialApp.router(
           title: 'ALS TMS',
           debugShowCheckedModeBanner: false,
+          scaffoldMessengerKey: _scaffoldMessengerKey,
           locale: Locale(appState.localeCode),
           themeMode: switch (appState.themeMode) {
             AppThemeMode.system => ThemeMode.system,
@@ -36,7 +67,7 @@ class App extends HookConsumerWidget {
           theme: buildTmsTheme(),
           routerConfig: _router.config(),
         );
-      }
+      },
     );
   }
 }

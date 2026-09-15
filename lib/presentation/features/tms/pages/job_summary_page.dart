@@ -9,7 +9,7 @@ import '../../../../application/dashboard/mobile_dashboard_providers.dart';
 import '../../../core/misc/text_style_provider.dart';
 import '../../../core/theme/tms_theme.dart';
 
-enum SummaryRange { week, month }
+enum SummaryRange { week, month, custom }
 
 @RoutePage()
 class JobSummaryPage extends HookConsumerWidget {
@@ -19,8 +19,18 @@ class JobSummaryPage extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final styles = ref.read(textStyleProvider);
     final range = useState(SummaryRange.month);
+    final customFromDate = useState(
+      DateTime.now().subtract(const Duration(days: 30)),
+    );
+    final customToDate = useState(DateTime.now());
     final dashboard = ref.watch(
-      mobileDashboardForPeriodProvider(_summaryRangeFor(range.value)),
+      mobileDashboardForPeriodProvider(
+        _summaryRangeFor(
+          range.value,
+          customFromDate: customFromDate.value,
+          customToDate: customToDate.value,
+        ),
+      ),
     );
     final bookingSummary = dashboard.when(
       data: (result) =>
@@ -57,6 +67,18 @@ class JobSummaryPage extends HookConsumerWidget {
                   : ListView(
                       padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 20.h),
                       children: [
+                        if (range.value == SummaryRange.custom) ...[
+                          _customDateRangeFields(
+                            context,
+                            styles,
+                            fromDate: customFromDate.value,
+                            toDate: customToDate.value,
+                            onFromChanged: (value) =>
+                                customFromDate.value = value,
+                            onToChanged: (value) => customToDate.value = value,
+                          ),
+                          SizedBox(height: 10.h),
+                        ],
                         Container(
                           padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 16.h),
                           decoration: BoxDecoration(
@@ -89,7 +111,7 @@ class JobSummaryPage extends HookConsumerWidget {
                               Text(
                                 dashboard.hasError || bookingSummary == null
                                     ? 'Unable to load booking summary'
-                                    : 'Transport booking status for ${range.value == SummaryRange.month ? 'the last month' : 'the last week'}',
+                                    : 'Transport booking status for ${_summaryPeriodLabel(range.value)}',
                                 style: styles.bodySmall.copyWith(
                                   color: const Color(0xFFB0B5BD),
                                   fontSize: 12.sp,
@@ -148,12 +170,14 @@ Widget _summaryHeader(
   SummaryRange selected,
   ValueChanged<SummaryRange> onChanged,
 ) {
-  final title = selected == SummaryRange.month
-      ? 'MONTHLY SUMMARY'
-      : 'WEEKLY SUMMARY';
-  final periodLabel = selected == SummaryRange.month
-      ? 'Last month'
-      : 'Last week';
+  final title = selected == SummaryRange.week
+      ? 'WEEKLY SUMMARY'
+      : 'MONTHLY SUMMARY';
+  final periodLabel = switch (selected) {
+    SummaryRange.week => 'Last week',
+    SummaryRange.month => 'Last month',
+    SummaryRange.custom => 'Custom range',
+  };
 
   return Padding(
     padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 4.h),
@@ -202,6 +226,10 @@ Widget _summaryHeader(
           itemBuilder: (_) => const [
             PopupMenuItem(value: SummaryRange.week, child: Text('Last week')),
             PopupMenuItem(value: SummaryRange.month, child: Text('Last month')),
+            PopupMenuItem(
+              value: SummaryRange.custom,
+              child: Text('Custom date range'),
+            ),
           ],
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -276,16 +304,106 @@ Widget _summaryStatusCard(
   ),
 );
 
-DashboardDateRange _summaryRangeFor(SummaryRange range) {
+DashboardDateRange _summaryRangeFor(
+  SummaryRange range, {
+  required DateTime customFromDate,
+  required DateTime customToDate,
+}) {
   final to = DateTime.now();
-  final from = range == SummaryRange.week
-      ? to.subtract(const Duration(days: 6))
-      : DateTime(to.year, to.month - 1, to.day);
+  final from = switch (range) {
+    SummaryRange.week => to.subtract(const Duration(days: 6)),
+    SummaryRange.month => DateTime(to.year, to.month - 1, to.day),
+    SummaryRange.custom => customFromDate,
+  };
   return DashboardDateRange(
     fromDate: _dashboardDate(from),
-    toDate: _dashboardDate(to),
+    toDate: _dashboardDate(range == SummaryRange.custom ? customToDate : to),
   );
 }
+
+Widget _customDateRangeFields(
+  BuildContext context,
+  dynamic styles, {
+  required DateTime fromDate,
+  required DateTime toDate,
+  required ValueChanged<DateTime> onFromChanged,
+  required ValueChanged<DateTime> onToChanged,
+}) => Row(
+  children: [
+    Expanded(
+      child: _dateRangeField(
+        context,
+        styles,
+        label: 'From date',
+        value: fromDate,
+        onSelected: onFromChanged,
+        firstDate: DateTime(2020),
+        lastDate: toDate,
+      ),
+    ),
+    SizedBox(width: 10.w),
+    Expanded(
+      child: _dateRangeField(
+        context,
+        styles,
+        label: 'To date',
+        value: toDate,
+        onSelected: onToChanged,
+        firstDate: fromDate,
+        lastDate: DateTime.now(),
+      ),
+    ),
+  ],
+);
+
+Widget _dateRangeField(
+  BuildContext context,
+  dynamic styles, {
+  required String label,
+  required DateTime value,
+  required ValueChanged<DateTime> onSelected,
+  required DateTime firstDate,
+  required DateTime lastDate,
+}) => Material(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(10.r),
+  child: InkWell(
+    borderRadius: BorderRadius.circular(10.r),
+    onTap: () async {
+      final date = await showDatePicker(
+        context: context,
+        initialDate: value,
+        firstDate: firstDate,
+        lastDate: lastDate,
+      );
+      if (date != null) onSelected(date);
+    },
+    child: Container(
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        border: Border.all(color: TmsColors.line),
+        borderRadius: BorderRadius.circular(10.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(), style: styles.labelSmall),
+          SizedBox(height: 4.h),
+          Text(
+            _dashboardDate(value),
+            style: styles.bodyMedium.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    ),
+  ),
+);
+
+String _summaryPeriodLabel(SummaryRange range) => switch (range) {
+  SummaryRange.week => 'the last week',
+  SummaryRange.month => 'the last month',
+  SummaryRange.custom => 'the selected date range',
+};
 
 String _dashboardDate(DateTime value) =>
     '${value.year}-${value.month.toString().padLeft(2, '0')}-'

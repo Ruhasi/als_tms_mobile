@@ -1,8 +1,8 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:omni_datetime_picker/omni_datetime_picker.dart';
 
 import '../../../../application/transport_booking/booking_lookup_providers.dart';
 import '../../../../domain/transport_booking/create_transport_booking_request.dart';
@@ -228,32 +228,20 @@ Widget _sectionLabel(String value) => Padding(
 Future<DateTime?> _showDateTimeWheel(
   BuildContext context, {
   DateTime? initialDate,
-}) async {
-  var selected = initialDate ?? DateTime.now();
-  return showCupertinoModalPopup<DateTime>(
+}) {
+  final now = DateTime.now();
+  final selectedDate = initialDate ?? now;
+  final earliestDate = now.subtract(const Duration(days: 1));
+  return showOmniDateTimePicker(
     context: context,
-    builder: (context) => Container(
-      height: 300,
-      color: Colors.white,
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => Navigator.pop(context, selected),
-              child: const Text('Done'),
-            ),
-          ),
-          Expanded(
-            child: CupertinoDatePicker(
-              mode: CupertinoDatePickerMode.dateAndTime,
-              initialDateTime: selected,
-              onDateTimeChanged: (value) => selected = value,
-            ),
-          ),
-        ],
-      ),
-    ),
+    type: OmniDateTimePickerType.dateAndTime,
+    initialDate: selectedDate,
+    firstDate: selectedDate.isBefore(earliestDate)
+        ? selectedDate
+        : earliestDate,
+    lastDate: now.add(const Duration(days: 365)),
+    is24HourMode: true,
+    isShowSeconds: false,
   );
 }
 

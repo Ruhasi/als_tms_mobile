@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:omni_datetime_picker/omni_datetime_picker.dart';
 
 import '../../../../application/dashboard/mobile_dashboard_providers.dart';
 import '../../../../application/transport_booking/booking_lookup_providers.dart';
@@ -33,7 +34,6 @@ class NewJobPage extends HookConsumerWidget {
     final departmentItems = useState<List<LookupItem>>(const []);
     final shipperItems = useState<List<LookupItem>>(const []);
     final locationItems = useState<List<LookupItem>>(const []);
-    final finalDestination = useState('');
     final vehicleType = useState('');
     final vehicleTypeLookup = useState<LookupItem?>(null);
     final vehicle = useState('');
@@ -101,12 +101,12 @@ class NewJobPage extends HookConsumerWidget {
           customerItems.value = items;
           if (items.length == 1) {
             customer.value = items.first;
+            shipper.value = items.first;
             invoiceTo.value = items.first;
           }
         });
         results[2].fold((_) {}, (items) {
           shipperItems.value = items;
-          if (items.length == 1) shipper.value = items.first;
         });
         results[3].fold((_) {}, (items) {
           locationItems.value = items;
@@ -227,6 +227,8 @@ class NewJobPage extends HookConsumerWidget {
                       );
                       if (selected == null) return;
                       customer.value = selected;
+                      shipper.value = selected;
+                      invoiceTo.value = selected;
                       vehicleType.value = '';
                       vehicleTypeLookup.value = null;
                       vehicle.value = '';
@@ -279,18 +281,22 @@ class NewJobPage extends HookConsumerWidget {
                       if (selected != null) pickup.value = selected;
                     },
                   ),
+                  _sectionLabel('VIA LOCATIONS (OPTIONAL)'),
+                  _ViaLocationsField(
+                    locations: dropLocations.value,
+                    onAdd: addDropLocation,
+                    onRemove: removeDropLocation,
+                  ),
+                  SizedBox(height: 8),
                   SelectorTile(
-                    label: 'Final destination *',
+                    label: 'Delivery location *',
                     value:
-                        destination.value?.name ??
-                        (finalDestination.value.isEmpty
-                            ? 'Select final destination'
-                            : finalDestination.value),
+                        destination.value?.name ?? 'Select delivery location',
                     hasError:
                         showValidationErrors.value && destination.value == null,
                     onTap: () async {
                       final selected = await lookup(
-                        'Final destination',
+                        'Delivery location',
                         lookups.locations,
                         locationItems.value,
                       );
@@ -460,12 +466,6 @@ class NewJobPage extends HookConsumerWidget {
                       ),
                     ),
                   ),
-                  _sectionLabel('VIA LOCATIONS (OPTIONAL)'),
-                  _ViaLocationsField(
-                    locations: dropLocations.value,
-                    onAdd: addDropLocation,
-                    onRemove: removeDropLocation,
-                  ),
 
                   const SizedBox(height: 20),
                 ],
@@ -518,7 +518,7 @@ class NewJobPage extends HookConsumerWidget {
                                     assignment.secondaryHelperSeq,
                                 trailerSeq: assignment.trailerSeq,
                                 payableVehicleTypeSeq:
-                                    assignment.payableVehicleTypeSeq,
+                                    vehicleTypeLookup.value!.seq,
                               )
                             : null;
                         final result = await lookups.createBooking(
@@ -996,16 +996,20 @@ Future<DateTime?> _showDateWheel(
 Future<DateTime?> _showDateTimeWheel(
   BuildContext context, {
   DateTime? initialDate,
-}) async {
-  var selectedDate = initialDate ?? DateTime.now();
-  return showCupertinoModalPopup<DateTime>(
+}) {
+  final now = DateTime.now();
+  final selectedDate = initialDate ?? now;
+  final earliestDate = now.subtract(const Duration(days: 1));
+  return showOmniDateTimePicker(
     context: context,
-    builder: (context) => _DateTimeWheel(
-      mode: CupertinoDatePickerMode.dateAndTime,
-      initialDateTime: selectedDate,
-      onChanged: (value) => selectedDate = value,
-      onDone: () => Navigator.pop(context, selectedDate),
-    ),
+    type: OmniDateTimePickerType.dateAndTime,
+    initialDate: selectedDate,
+    firstDate: selectedDate.isBefore(earliestDate)
+        ? selectedDate
+        : earliestDate,
+    lastDate: now.add(const Duration(days: 365)),
+    is24HourMode: true,
+    isShowSeconds: false,
   );
 }
 

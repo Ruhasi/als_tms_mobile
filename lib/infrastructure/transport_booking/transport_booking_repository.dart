@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../domain/core/app_failure.dart';
 import '../../domain/transport_booking/create_transport_booking_request.dart';
+import '../../domain/transport_booking/lookup_item.dart';
 import '../../domain/transport_booking/transport_booking.dart';
 import '../api_helpers/api_client.dart';
 
@@ -98,25 +99,33 @@ class TransportBookingRepository {
 
   Future<Either<NetworkFailure, void>> updateSchedule({
     required TransportBookingDetail booking,
+    required LookupItem department,
+    required LookupItem customer,
+    required LookupItem shipper,
+    required LookupItem invoiceCustomer,
+    required int invoiceStatus,
+    required LookupItem vehicleType,
+    required LookupItem pickupLocation,
     required String requestedArrivalTime,
+    required LookupItem deliveryLocation,
     required String requestedDeliveryTime,
   }) async {
     final result = await _api.request<void>(
       path: '$_path/${booking.transportBookingSeq}',
       method: HttpMethod.put,
       data: {
-        'departmentSeq': booking.departmentSeq,
-        'customerSeq': booking.customerSeq,
-        'shipperSeq': booking.shipperSeq,
-        'invoiceCustomerSeq': booking.invoiceCustomerSeq,
-        'invoiceStatus': booking.invoiceStatus,
-        'vehicleTypeSeq': booking.vehicleTypeSeq,
-        'pickupLocationSeq': booking.pickupLocationSeq,
+        'departmentSeq': department.seq,
+        'customerSeq': customer.seq,
+        'shipperSeq': shipper.seq,
+        'invoiceCustomerSeq': invoiceCustomer.seq,
+        'invoiceStatus': invoiceStatus,
+        'vehicleTypeSeq': vehicleType.seq,
+        'pickupLocationSeq': pickupLocation.seq,
         'requestedArrivalTime': requestedArrivalTime,
-        'deliveryLocationSeq': booking.deliveryLocationSeq,
+        'deliveryLocationSeq': deliveryLocation.seq,
         'requestedDeliveryTime': requestedDeliveryTime,
-        'pickupLocationAddress': booking.pickupLocationAddress,
-        'deliveryLocationAddress': booking.deliveryLocationAddress,
+        'pickupLocationAddress': pickupLocation.name,
+        'deliveryLocationAddress': deliveryLocation.name,
         'paymentMode': booking.paymentMode,
         'cashOrCredit': booking.cashOrCredit,
       },
@@ -154,6 +163,20 @@ class TransportBookingRepository {
             .map((location) => location.toJson())
             .toList(),
       },
+      decode: (_) {},
+    );
+    return switch (result) {
+      ApiSuccess() => right(null),
+      ApiError(failure: final failure) => left(failure),
+    };
+  }
+
+  Future<Either<NetworkFailure, void>> deleteViaLocations(
+    int transportBookingSeq,
+  ) async {
+    final result = await _api.request<void>(
+      path: '$_path/$transportBookingSeq/via-locations',
+      method: HttpMethod.delete,
       decode: (_) {},
     );
     return switch (result) {
