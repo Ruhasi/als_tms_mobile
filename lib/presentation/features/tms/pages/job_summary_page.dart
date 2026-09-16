@@ -6,6 +6,7 @@ import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../../application/dashboard/mobile_dashboard_providers.dart';
+import '../../../../domain/dashboard/mobile_dashboard.dart';
 import '../../../core/misc/text_style_provider.dart';
 import '../../../core/theme/tms_theme.dart';
 
@@ -32,23 +33,18 @@ class JobSummaryPage extends HookConsumerWidget {
         ),
       ),
     );
-    final bookingSummary = dashboard.when(
-      data: (result) =>
-          result.fold((_) => null, (value) => value.transportBookings),
-      loading: () => null,
-      error: (_, _) => null,
+    final statusCounts = dashboard.when(
+      data: (result) => result.fold(
+        (_) => const <DashboardStatusCount>[],
+        (value) => value.statusCounts,
+      ),
+      loading: () => const <DashboardStatusCount>[],
+      error: (_, _) => const <DashboardStatusCount>[],
     );
-    final summary = (
-      delivered: bookingSummary?.completed ?? 0,
-      inTransit: bookingSummary?.onGoing ?? 0,
-      requested: bookingSummary?.pending ?? 0,
-      cancelled: bookingSummary?.cancelled ?? 0,
+    final total = statusCounts.fold<int>(
+      0,
+      (sum, status) => sum + status.count,
     );
-    final total =
-        summary.delivered +
-        summary.inTransit +
-        summary.requested +
-        summary.cancelled;
 
     return Scaffold(
       backgroundColor: TmsColors.canvas,
@@ -109,7 +105,7 @@ class JobSummaryPage extends HookConsumerWidget {
                               ),
                               SizedBox(height: 8.h),
                               Text(
-                                dashboard.hasError || bookingSummary == null
+                                dashboard.hasError
                                     ? 'Unable to load booking summary'
                                     : 'Transport booking status for ${_summaryPeriodLabel(range.value)}',
                                 style: styles.bodySmall.copyWith(
@@ -122,38 +118,18 @@ class JobSummaryPage extends HookConsumerWidget {
                           ),
                         ),
                         SizedBox(height: 10.h),
-                        _summaryStatusCard(
-                          styles,
-                          label: 'Delivered',
-                          value: summary.delivered,
-                          fraction: total == 0 ? 0 : summary.delivered / total,
-                          color: TmsColors.green,
+                        ...statusCounts.expand(
+                          (status) => [
+                            _summaryStatusCard(
+                              styles,
+                              label: status.label,
+                              value: status.count,
+                              fraction: total == 0 ? 0 : status.count / total,
+                              color: _summaryStatusColor(status.bucket),
+                            ),
+                            SizedBox(height: 10.h),
+                          ],
                         ),
-                        SizedBox(height: 10.h),
-                        _summaryStatusCard(
-                          styles,
-                          label: 'In transit',
-                          value: summary.inTransit,
-                          fraction: total == 0 ? 0 : summary.inTransit / total,
-                          color: TmsColors.blue,
-                        ),
-                        SizedBox(height: 10.h),
-                        _summaryStatusCard(
-                          styles,
-                          label: 'Requested',
-                          value: summary.requested,
-                          fraction: total == 0 ? 0 : summary.requested / total,
-                          color: TmsColors.gold,
-                        ),
-                        SizedBox(height: 10.h),
-                        _summaryStatusCard(
-                          styles,
-                          label: 'Cancelled',
-                          value: summary.cancelled,
-                          fraction: total == 0 ? 0 : summary.cancelled / total,
-                          color: TmsColors.red,
-                        ),
-                        SizedBox(height: 10.h),
                       ],
                     ),
             ),
@@ -303,6 +279,13 @@ Widget _summaryStatusCard(
     ],
   ),
 );
+
+Color _summaryStatusColor(String bucket) => switch (bucket.toUpperCase()) {
+  'PENDING' => TmsColors.orange,
+  'COMPLETED' => TmsColors.green,
+  'CANCELLED' => TmsColors.red,
+  _ => TmsColors.blue,
+};
 
 DashboardDateRange _summaryRangeFor(
   SummaryRange range, {

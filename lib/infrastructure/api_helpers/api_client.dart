@@ -207,6 +207,7 @@ final dioProvider = Provider<Dio>((ref) {
         try {
           final accessToken = await tokenRefreshService.refreshAccessToken();
           if (accessToken == null) {
+            await sessionStorage.clear();
             ref
                 .read(appStateNotifierProvider.notifier)
                 .clearSession(sessionExpired: true);

@@ -46,7 +46,7 @@ class SignInPage extends HookConsumerWidget {
                     ),
                   ),
                   SizedBox(height: 8.h),
-                  Text('Nexus360', style: ref.read(textStyleProvider).bold28),
+                  Text('Nexus360fleet', style: ref.read(textStyleProvider).bold28),
                   const SizedBox(height: 8),
                   const Text(
                     'Transport management in your pocket.',

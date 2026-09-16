@@ -24,25 +24,10 @@ class App extends HookConsumerWidget {
     ref.listen(appStateNotifierProvider, (previous, next) {
       if (next.sessionExpired && previous?.sessionExpired != true) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final dialogContext = _scaffoldMessengerKey.currentContext;
-          if (dialogContext == null) return;
-          showDialog<void>(
-            context: dialogContext,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              title: const Text('Session expired'),
-              content: const Text(
-                'Your session has expired. Please sign in again.',
-              ),
-              actions: [
-                FilledButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _router.replaceAll([const SignInRoute()]);
-                  },
-                  child: const Text('Go to login'),
-                ),
-              ],
+          _router.replaceAll([const SignInRoute()]);
+          _scaffoldMessengerKey.currentState?.showSnackBar(
+            const SnackBar(
+              content: Text('Your session has expired. Please sign in again.'),
             ),
           );
         });

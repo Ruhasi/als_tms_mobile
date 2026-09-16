@@ -1,5 +1,8 @@
 class MobileDashboard {
   const MobileDashboard({
+    required this.fromDate,
+    required this.toDate,
+    required this.statusCounts,
     required this.expenseVouchers,
     required this.pendingToInvoice,
     required this.pendingToEv,
@@ -11,6 +14,9 @@ class MobileDashboard {
     required this.invoiceVsExpense,
   });
 
+  final String fromDate;
+  final String toDate;
+  final List<DashboardStatusCount> statusCounts;
   final DashboardValue expenseVouchers;
   final DashboardCount pendingToInvoice;
   final DashboardCount pendingToEv;
@@ -23,33 +29,47 @@ class MobileDashboard {
 
   factory MobileDashboard.fromJson(Map<String, dynamic> json) =>
       MobileDashboard(
-        expenseVouchers: DashboardValue.fromJson(
-          json['expenseVouchers'] as Map<String, dynamic>? ?? const {},
+        fromDate: _text(json['fromDate']),
+        toDate: _text(json['toDate']),
+        statusCounts: (json['statusCounts'] as List? ?? const [])
+            .map(
+              (item) =>
+                  DashboardStatusCount.fromJson(item as Map<String, dynamic>),
+            )
+            .toList(),
+        expenseVouchers: const DashboardValue(count: 0, value: 0),
+        pendingToInvoice: const DashboardCount(count: 0),
+        pendingToEv: const DashboardCount(count: 0),
+        transportBookings: TransportBookingSummary(
+          onGoing: _statusCount(json, 'OPEN_JOBS'),
+          pending: _statusCount(json, 'PENDING'),
+          completed: _statusCount(json, 'COMPLETED'),
+          cancelled: _statusCount(json, 'CANCELLED'),
         ),
-        pendingToInvoice: DashboardCount.fromJson(
-          json['pendingToInvoice'] as Map<String, dynamic>? ?? const {},
-        ),
-        pendingToEv: DashboardCount.fromJson(
-          json['pendingToEv'] as Map<String, dynamic>? ?? const {},
-        ),
-        transportBookings: TransportBookingSummary.fromJson(
-          json['transportBookings'] as Map<String, dynamic>? ?? const {},
-        ),
-        monthlyCostRevenue: List<Object?>.from(
-          json['monthlyCostRevenue'] as List? ?? const [],
-        ),
-        customerWiseJobCount: List<Object?>.from(
-          json['customerWiseJobCount'] as List? ?? const [],
-        ),
-        customerWiseRevenue: List<Object?>.from(
-          json['customerWiseRevenue'] as List? ?? const [],
-        ),
-        vehicleLocations: List<Object?>.from(
-          json['vehicleLocations'] as List? ?? const [],
-        ),
-        invoiceVsExpense: List<Object?>.from(
-          json['invoiceVsExpense'] as List? ?? const [],
-        ),
+        monthlyCostRevenue: const [],
+        customerWiseJobCount: const [],
+        customerWiseRevenue: const [],
+        vehicleLocations: const [],
+        invoiceVsExpense: const [],
+      );
+}
+
+class DashboardStatusCount {
+  const DashboardStatusCount({
+    required this.bucket,
+    required this.label,
+    required this.count,
+  });
+
+  final String bucket;
+  final String label;
+  final int count;
+
+  factory DashboardStatusCount.fromJson(Map<String, dynamic> json) =>
+      DashboardStatusCount(
+        bucket: _text(json['bucket']),
+        label: _text(json['label']),
+        count: _asInt(json['count']),
       );
 }
 
@@ -101,6 +121,20 @@ int _asInt(Object? value) => switch (value) {
   String value => int.tryParse(value) ?? 0,
   _ => 0,
 };
+
+int _statusCount(Map<String, dynamic> json, String bucket) {
+  final statusCounts = json['statusCounts'] as List? ?? const [];
+  final status = statusCounts
+      .cast<Map>()
+      .cast<Map<String, dynamic>>()
+      .firstWhere(
+        (item) => _text(item['bucket']).toUpperCase() == bucket,
+        orElse: () => const {},
+      );
+  return _asInt(status['count']);
+}
+
+String _text(Object? value) => value?.toString() ?? '';
 
 double _asDouble(Object? value) => switch (value) {
   double value => value,

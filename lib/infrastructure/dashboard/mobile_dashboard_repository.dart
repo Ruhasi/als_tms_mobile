@@ -10,13 +10,12 @@ class MobileDashboardRepository {
   final ApiClient _api;
 
   Future<Either<NetworkFailure, MobileDashboard>> getDashboard({
-    String? fromDate,
-    String? toDate,
+    required String fromDate,
+    required String toDate,
   }) async {
     final result = await _api.request<MobileDashboard>(
-      path: '/api/v1/mobile/dashboard',
-      queryParameters: {'fromData': fromDate, 'toDate': toDate}
-        ..removeWhere((_, value) => value == null),
+      path: '/api/v1/mobile/transport-bookings/dashboard',
+      queryParameters: {'fromDate': fromDate, 'toDate': toDate},
       decode: (json) {
         final body = json as Map<String, dynamic>;
         return MobileDashboard.fromJson(body['data'] as Map<String, dynamic>);

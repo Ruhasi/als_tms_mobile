@@ -11,9 +11,15 @@ final mobileDashboardRepositoryProvider = Provider<MobileDashboardRepository>(
 );
 
 final mobileDashboardProvider =
-    FutureProvider<Either<NetworkFailure, MobileDashboard>>(
-      (ref) => ref.watch(mobileDashboardRepositoryProvider).getDashboard(),
-    );
+    FutureProvider<Either<NetworkFailure, MobileDashboard>>((ref) {
+      final today = DateTime.now();
+      return ref
+          .watch(mobileDashboardRepositoryProvider)
+          .getDashboard(
+            fromDate: _dashboardDate(today.subtract(const Duration(days: 30))),
+            toDate: _dashboardDate(today),
+          );
+    });
 
 final mobileDashboardForPeriodProvider =
     FutureProvider.family<
@@ -40,3 +46,7 @@ class DashboardDateRange {
   @override
   int get hashCode => Object.hash(fromDate, toDate);
 }
+
+String _dashboardDate(DateTime value) =>
+    '${value.year}-${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')}';

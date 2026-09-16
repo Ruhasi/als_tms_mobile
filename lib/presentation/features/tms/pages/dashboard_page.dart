@@ -112,7 +112,7 @@ class DashboardPage extends ConsumerWidget {
                 styles: styles,
                 name: profile?.companies.isNotEmpty == true
                     ? profile!.companies.first.name
-                    : profile?.username ?? 'Nexus360',
+                    : profile?.username ?? 'Nexus360fleet',
                 department: profile?.department ?? 'TRANSPORTER',
                 onLogout: logout,
               ),
@@ -126,41 +126,12 @@ class DashboardPage extends ConsumerWidget {
                   child: ListView(
                     padding: EdgeInsets.fromLTRB(18.w, 20.h, 18.w, 100.h),
                     children: [
-                      Row(
-                        children: [
-                          _metric(
-                            dashboard.transportBookings.onGoing.toString(),
-                            'OPEN JOBS',
-                            TmsColors.ink,
-                            styles,
-                            onTap: () =>
-                                context.router.push(AllJobRequestsRoute()),
-                          ),
-                          SizedBox(width: 13.w),
-                          _metric(
-                            dashboard.transportBookings.completed.toString(),
-                            'COMPLETED',
-                            TmsColors.green,
-                            styles,
-                            onTap: () => context.router.push(
-                              AllJobRequestsRoute(initialFilter: '8'),
-                            ),
-                          ),
-                          SizedBox(width: 13.w),
-                          _metric(
-                            dashboard.transportBookings.pending.toString(),
-                            'PENDING',
-                            TmsColors.orange,
-                            styles,
-                            onTap: () => context.router.push(
-                              AllJobRequestsRoute(initialFilter: '1'),
-                            ),
-                          ),
-                        ],
+                      _dashboardStatusCounts(
+                        context,
+                        dashboard.statusCounts,
+                        styles,
                       ),
                       SizedBox(height: 12.h),
-                      _additionalDashboardStats(dashboard, styles),
-                      SizedBox(height: 18.h),
                       _summaryCard(
                         styles,
                         onTap: () =>
@@ -321,79 +292,6 @@ Widget _dashboardHeader({
   ),
 );
 
-Widget _additionalDashboardStats(MobileDashboard dashboard, dynamic styles) =>
-    Row(
-      children: [
-        _smallStat(
-          'Cancelled',
-          dashboard.transportBookings.cancelled.toString(),
-          TmsColors.red,
-          styles,
-        ),
-        SizedBox(width: 8.w),
-        _smallStat(
-          'Pending invoice',
-          dashboard.pendingToInvoice.count.toString(),
-          TmsColors.blue,
-          styles,
-        ),
-        SizedBox(width: 8.w),
-        _smallStat(
-          'Pending EV',
-          dashboard.pendingToEv.count.toString(),
-          TmsColors.gold,
-          styles,
-        ),
-        SizedBox(width: 8.w),
-        _smallStat(
-          'Expense vouchers',
-          '${dashboard.expenseVouchers.count}',
-          TmsColors.orange,
-          styles,
-          subtitle: dashboard.expenseVouchers.value.toStringAsFixed(2),
-        ),
-      ],
-    );
-
-Widget _smallStat(
-  String label,
-  String value,
-  Color color,
-  dynamic styles, {
-  String? subtitle,
-}) => Expanded(
-  child: Container(
-    height: 62.h.toDouble(),
-    padding: EdgeInsets.all(8.w),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: TmsColors.line),
-      borderRadius: BorderRadius.circular(12.r),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: styles.titleMedium.copyWith(
-            color: color,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        if (subtitle != null)
-          Text(subtitle, style: styles.labelSmall.copyWith(fontSize: 8.sp)),
-        const Spacer(),
-        Text(
-          label,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: styles.labelSmall.copyWith(fontSize: 7.sp, letterSpacing: .4),
-        ),
-      ],
-    ),
-  ),
-);
-
 Widget _summaryCard(dynamic styles, {required VoidCallback onTap}) => Material(
   color: TmsColors.ink,
   borderRadius: BorderRadius.circular(15.r),
@@ -495,59 +393,100 @@ Widget _newJobButton(BuildContext context, dynamic styles) => Container(
   ),
 );
 
+Widget _dashboardStatusCounts(
+  BuildContext context,
+  List<DashboardStatusCount> statusCounts,
+  dynamic styles,
+) => LayoutBuilder(
+  builder: (_, constraints) {
+    final cardWidth = (constraints.maxWidth - (12.w * 2)) / 3;
+    return Wrap(
+      spacing: 12.w,
+      runSpacing: 12.h,
+      children: statusCounts
+          .map(
+            (status) => SizedBox(
+              width: cardWidth,
+              child: _metric(
+                status.count.toString(),
+                status.label,
+                _statusColor(status.bucket),
+                styles,
+                onTap: () => context.router.push(
+                  AllJobRequestsRoute(
+                    initialFilter: _filterForBucket(status.bucket),
+                  ),
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  },
+);
+
 Widget _metric(
   String value,
   String label,
   Color color,
   dynamic styles, {
   VoidCallback? onTap,
-}) => Expanded(
-  child: Material(
-    color: Colors.white,
+}) => Material(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(18.r),
+  child: InkWell(
+    onTap: onTap,
     borderRadius: BorderRadius.circular(18.r),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18.r),
-      child: Container(
-        height: 72.h.toDouble(),
-        padding: EdgeInsets.fromLTRB(16.w, 16.h, 8.w, 12.h),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18.r),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: .025),
-              blurRadius: 5,
+    child: Container(
+      height: 72.h.toDouble(),
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 8.w, 12.h),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18.r),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: .025), blurRadius: 5),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: styles.displaySmall.copyWith(
+              fontSize: 30.sp,
+              height: 1.0,
+              color: color,
+              fontWeight: FontWeight.w900,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: styles.displaySmall.copyWith(
-                fontSize: 30.sp,
-                height: 1.0,
-                color: color,
-                fontWeight: FontWeight.w900,
-              ),
+          ),
+          const Spacer(),
+          Text(
+            label.toUpperCase(),
+            style: styles.labelSmall.copyWith(
+              fontSize: 8.sp,
+              letterSpacing: 1.2,
+              height: 1.25,
             ),
-            const Spacer(),
-            Text(
-              label,
-              style: styles.labelSmall.copyWith(
-                fontSize: 8.sp,
-                letterSpacing: 1.2,
-                height: 1.25,
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
+            maxLines: 2,
+          ),
+        ],
       ),
     ),
   ),
 );
+
+Color _statusColor(String bucket) => switch (bucket.toUpperCase()) {
+  'PENDING' => TmsColors.orange,
+  'COMPLETED' => TmsColors.green,
+  'CANCELLED' => TmsColors.red,
+  _ => TmsColors.ink,
+};
+
+String? _filterForBucket(String bucket) => switch (bucket.toUpperCase()) {
+  'PENDING' => '1',
+  'COMPLETED' => '8',
+  'CANCELLED' => '101',
+  _ => null,
+};
 
 String _initials(String name) {
   final words = name.trim().split(RegExp(r'\s+'));
