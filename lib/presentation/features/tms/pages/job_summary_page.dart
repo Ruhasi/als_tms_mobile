@@ -24,12 +24,16 @@ class JobSummaryPage extends HookConsumerWidget {
       DateTime.now().subtract(const Duration(days: 30)),
     );
     final customToDate = useState(DateTime.now());
+    final selectedDates = _summaryDatesFor(
+      range.value,
+      customFromDate: customFromDate.value,
+      customToDate: customToDate.value,
+    );
     final dashboard = ref.watch(
       mobileDashboardForPeriodProvider(
-        _summaryRangeFor(
-          range.value,
-          customFromDate: customFromDate.value,
-          customToDate: customToDate.value,
+        DashboardDateRange(
+          fromDate: _dashboardDate(selectedDates.from),
+          toDate: _dashboardDate(selectedDates.to),
         ),
       ),
     );
@@ -63,18 +67,17 @@ class JobSummaryPage extends HookConsumerWidget {
                   : ListView(
                       padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 20.h),
                       children: [
-                        if (range.value == SummaryRange.custom) ...[
-                          _customDateRangeFields(
-                            context,
-                            styles,
-                            fromDate: customFromDate.value,
-                            toDate: customToDate.value,
-                            onFromChanged: (value) =>
-                                customFromDate.value = value,
-                            onToChanged: (value) => customToDate.value = value,
-                          ),
-                          SizedBox(height: 10.h),
-                        ],
+                        _dateRangeFields(
+                          context,
+                          styles,
+                          fromDate: selectedDates.from,
+                          toDate: selectedDates.to,
+                          editable: range.value == SummaryRange.custom,
+                          onFromChanged: (value) =>
+                              customFromDate.value = value,
+                          onToChanged: (value) => customToDate.value = value,
+                        ),
+                        SizedBox(height: 10.h),
                         Container(
                           padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 16.h),
                           decoration: BoxDecoration(
@@ -287,7 +290,7 @@ Color _summaryStatusColor(String bucket) => switch (bucket.toUpperCase()) {
   _ => TmsColors.blue,
 };
 
-DashboardDateRange _summaryRangeFor(
+({DateTime from, DateTime to}) _summaryDatesFor(
   SummaryRange range, {
   required DateTime customFromDate,
   required DateTime customToDate,
@@ -298,17 +301,15 @@ DashboardDateRange _summaryRangeFor(
     SummaryRange.month => DateTime(to.year, to.month - 1, to.day),
     SummaryRange.custom => customFromDate,
   };
-  return DashboardDateRange(
-    fromDate: _dashboardDate(from),
-    toDate: _dashboardDate(range == SummaryRange.custom ? customToDate : to),
-  );
+  return (from: from, to: range == SummaryRange.custom ? customToDate : to);
 }
 
-Widget _customDateRangeFields(
+Widget _dateRangeFields(
   BuildContext context,
   dynamic styles, {
   required DateTime fromDate,
   required DateTime toDate,
+  required bool editable,
   required ValueChanged<DateTime> onFromChanged,
   required ValueChanged<DateTime> onToChanged,
 }) => Row(
@@ -319,7 +320,7 @@ Widget _customDateRangeFields(
         styles,
         label: 'From date',
         value: fromDate,
-        onSelected: onFromChanged,
+        onSelected: editable ? onFromChanged : null,
         firstDate: DateTime(2020),
         lastDate: toDate,
       ),
@@ -331,7 +332,7 @@ Widget _customDateRangeFields(
         styles,
         label: 'To date',
         value: toDate,
-        onSelected: onToChanged,
+        onSelected: editable ? onToChanged : null,
         firstDate: fromDate,
         lastDate: DateTime.now(),
       ),
@@ -344,7 +345,7 @@ Widget _dateRangeField(
   dynamic styles, {
   required String label,
   required DateTime value,
-  required ValueChanged<DateTime> onSelected,
+  ValueChanged<DateTime>? onSelected,
   required DateTime firstDate,
   required DateTime lastDate,
 }) => Material(
@@ -352,15 +353,17 @@ Widget _dateRangeField(
   borderRadius: BorderRadius.circular(10.r),
   child: InkWell(
     borderRadius: BorderRadius.circular(10.r),
-    onTap: () async {
-      final date = await showDatePicker(
-        context: context,
-        initialDate: value,
-        firstDate: firstDate,
-        lastDate: lastDate,
-      );
-      if (date != null) onSelected(date);
-    },
+    onTap: onSelected == null
+        ? null
+        : () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: value,
+              firstDate: firstDate,
+              lastDate: lastDate,
+            );
+            if (date != null) onSelected(date);
+          },
     child: Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(

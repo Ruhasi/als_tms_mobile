@@ -48,12 +48,23 @@ class NewJobPage extends HookConsumerWidget {
     final isSubmitting = useState(false);
     final showValidationErrors = useState(false);
     final isLoadingLookups = useState(true);
+    final isPickerOpen = useRef(false);
 
-    Future<LookupItem?> lookup(
+    Future<T?> openPicker<T>(Future<T?> Function() picker) async {
+      if (isPickerOpen.value) return null;
+      isPickerOpen.value = true;
+      try {
+        return await picker();
+      } finally {
+        isPickerOpen.value = false;
+      }
+    }
+
+    Future<LookupItem?> showLookup(
       String title,
       LookupSearch search,
       List<LookupItem> initialItems,
-    ) async {
+    ) {
       return showBookingLookupSheet(
         context,
         title: title,
@@ -61,6 +72,12 @@ class NewJobPage extends HookConsumerWidget {
         initialItems: initialItems,
       );
     }
+
+    Future<LookupItem?> lookup(
+      String title,
+      LookupSearch search,
+      List<LookupItem> initialItems,
+    ) => openPicker(() => showLookup(title, search, initialItems));
 
     useEffect(() {
       Future<void> preload() async {
@@ -160,6 +177,7 @@ class NewJobPage extends HookConsumerWidget {
         VehicleAssignmentRoute(
           customerSeq: customer.value?.seq,
           vehicleType: vehicleType.value,
+          showVehicleTypeSelector: false,
           vehicle: vehicle.value,
           driver: driver.value,
         ),
@@ -311,9 +329,11 @@ class NewJobPage extends HookConsumerWidget {
                         showValidationErrors.value &&
                         requestedArrival.value == null,
                     onTap: () async {
-                      final value = await _showDateTimeWheel(
-                        context,
-                        initialDate: requestedArrival.value,
+                      final value = await openPicker(
+                        () => _showDateTimeWheel(
+                          context,
+                          initialDate: requestedArrival.value,
+                        ),
                       );
                       if (value != null) requestedArrival.value = value;
                     },
@@ -326,9 +346,11 @@ class NewJobPage extends HookConsumerWidget {
                         showValidationErrors.value &&
                         requestedDelivery.value == null,
                     onTap: () async {
-                      final value = await _showDateTimeWheel(
-                        context,
-                        initialDate: requestedDelivery.value,
+                      final value = await openPicker(
+                        () => _showDateTimeWheel(
+                          context,
+                          initialDate: requestedDelivery.value,
+                        ),
                       );
                       if (value != null) requestedDelivery.value = value;
                     },
@@ -340,10 +362,12 @@ class NewJobPage extends HookConsumerWidget {
                     hasError:
                         showValidationErrors.value && paymentMode.value == null,
                     onTap: () async {
-                      final option = await showOptionSheet(
-                        context,
-                        title: 'Payment mode',
-                        options: _paymentModes,
+                      final option = await openPicker(
+                        () => showOptionSheet(
+                          context,
+                          title: 'Payment mode',
+                          options: _paymentModes,
+                        ),
                       );
                       if (option != null) {
                         paymentMode.value = int.parse(option.id);
@@ -358,10 +382,12 @@ class NewJobPage extends HookConsumerWidget {
                         showValidationErrors.value &&
                         cashOrCredit.value == null,
                     onTap: () async {
-                      final option = await showOptionSheet(
-                        context,
-                        title: 'Cash or credit',
-                        options: _cashOrCreditOptions,
+                      final option = await openPicker(
+                        () => showOptionSheet(
+                          context,
+                          title: 'Cash or credit',
+                          options: _cashOrCreditOptions,
+                        ),
                       );
                       if (option != null) {
                         cashOrCredit.value = int.parse(option.id);
@@ -376,10 +402,12 @@ class NewJobPage extends HookConsumerWidget {
                         showValidationErrors.value &&
                         invoiceStatus.value == null,
                     onTap: () async {
-                      final option = await showOptionSheet(
-                        context,
-                        title: 'Invoice status',
-                        options: _invoiceStatusOptions,
+                      final option = await openPicker(
+                        () => showOptionSheet(
+                          context,
+                          title: 'Invoice status',
+                          options: _invoiceStatusOptions,
+                        ),
                       );
                       if (option != null) {
                         invoiceStatus.value = int.parse(option.id);
@@ -398,18 +426,21 @@ class NewJobPage extends HookConsumerWidget {
                     onTap: customer.value == null
                         ? null
                         : () async {
-                            final result = await lookups.vehicleTypes(
-                              customer.value!.seq,
-                            );
-                            final initialItems = result.fold(
-                              (_) => <LookupItem>[],
-                              (items) => items,
-                            );
-                            final selected = await lookup(
-                              'Vehicle type',
-                              (_) => lookups.vehicleTypes(customer.value!.seq),
-                              initialItems,
-                            );
+                            final selected = await openPicker(() async {
+                              final result = await lookups.vehicleTypes(
+                                customer.value!.seq,
+                              );
+                              final initialItems = result.fold(
+                                (_) => <LookupItem>[],
+                                (items) => items,
+                              );
+                              return showLookup(
+                                'Vehicle type',
+                                (_) =>
+                                    lookups.vehicleTypes(customer.value!.seq),
+                                initialItems,
+                              );
+                            });
                             if (selected != null) {
                               vehicleType.value = selected.name;
                               vehicleTypeLookup.value = selected;

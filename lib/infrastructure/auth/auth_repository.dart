@@ -13,16 +13,11 @@ class AuthRepository {
   Future<Either<NetworkFailure, LoginSession>> login({
     required String username,
     required String password,
-    required String recaptchaToken,
   }) async {
     final result = await _apiClient.request<LoginSession>(
       path: '/api/v1/mobile/login',
       method: HttpMethod.post,
-      data: {
-        'username': username,
-        'password': password,
-        'recaptchaToken': recaptchaToken,
-      },
+      data: {'username': username, 'password': password},
 
       decode: (json) {
         final response = json as Map<String, dynamic>;

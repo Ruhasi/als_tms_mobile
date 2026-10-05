@@ -201,6 +201,7 @@ class VehicleAssignmentRoute extends PageRouteInfo<VehicleAssignmentRouteArgs> {
     Key? key,
     int? customerSeq,
     String vehicleType = '',
+    bool showVehicleTypeSelector = true,
     String vehicle = '',
     String driver = '',
     String driverHelper = '',
@@ -211,6 +212,7 @@ class VehicleAssignmentRoute extends PageRouteInfo<VehicleAssignmentRouteArgs> {
            key: key,
            customerSeq: customerSeq,
            vehicleType: vehicleType,
+           showVehicleTypeSelector: showVehicleTypeSelector,
            vehicle: vehicle,
            driver: driver,
            driverHelper: driverHelper,
@@ -230,6 +232,7 @@ class VehicleAssignmentRoute extends PageRouteInfo<VehicleAssignmentRouteArgs> {
         key: args.key,
         customerSeq: args.customerSeq,
         vehicleType: args.vehicleType,
+        showVehicleTypeSelector: args.showVehicleTypeSelector,
         vehicle: args.vehicle,
         driver: args.driver,
         driverHelper: args.driverHelper,
@@ -243,6 +246,7 @@ class VehicleAssignmentRouteArgs {
     this.key,
     this.customerSeq,
     this.vehicleType = '',
+    this.showVehicleTypeSelector = true,
     this.vehicle = '',
     this.driver = '',
     this.driverHelper = '',
@@ -254,6 +258,8 @@ class VehicleAssignmentRouteArgs {
 
   final String vehicleType;
 
+  final bool showVehicleTypeSelector;
+
   final String vehicle;
 
   final String driver;
@@ -262,7 +268,7 @@ class VehicleAssignmentRouteArgs {
 
   @override
   String toString() {
-    return 'VehicleAssignmentRouteArgs{key: $key, customerSeq: $customerSeq, vehicleType: $vehicleType, vehicle: $vehicle, driver: $driver, driverHelper: $driverHelper}';
+    return 'VehicleAssignmentRouteArgs{key: $key, customerSeq: $customerSeq, vehicleType: $vehicleType, showVehicleTypeSelector: $showVehicleTypeSelector, vehicle: $vehicle, driver: $driver, driverHelper: $driverHelper}';
   }
 
   @override
@@ -272,6 +278,7 @@ class VehicleAssignmentRouteArgs {
     return key == other.key &&
         customerSeq == other.customerSeq &&
         vehicleType == other.vehicleType &&
+        showVehicleTypeSelector == other.showVehicleTypeSelector &&
         vehicle == other.vehicle &&
         driver == other.driver &&
         driverHelper == other.driverHelper;
@@ -282,6 +289,7 @@ class VehicleAssignmentRouteArgs {
       key.hashCode ^
       customerSeq.hashCode ^
       vehicleType.hashCode ^
+      showVehicleTypeSelector.hashCode ^
       vehicle.hashCode ^
       driver.hashCode ^
       driverHelper.hashCode;

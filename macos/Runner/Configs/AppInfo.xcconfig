@@ -8,7 +8,7 @@
 PRODUCT_NAME = Nexus360fleet
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterTemplate
+PRODUCT_BUNDLE_IDENTIFIER = com.nexus360fleet.mobile
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.

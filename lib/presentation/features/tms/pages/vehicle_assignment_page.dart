@@ -16,6 +16,7 @@ class VehicleAssignmentPage extends HookConsumerWidget {
     super.key,
     this.customerSeq,
     this.vehicleType = '',
+    this.showVehicleTypeSelector = true,
     this.vehicle = '',
     this.driver = '',
     this.driverHelper = '',
@@ -23,6 +24,7 @@ class VehicleAssignmentPage extends HookConsumerWidget {
 
   final int? customerSeq;
   final String vehicleType;
+  final bool showVehicleTypeSelector;
   final String vehicle;
   final String driver;
   final String driverHelper;
@@ -53,6 +55,7 @@ class VehicleAssignmentPage extends HookConsumerWidget {
       vehicleType.isEmpty ? 'Select vehicle type' : vehicleType,
     );
     Future<void> loadVehicleTypes() async {
+      if (!showVehicleTypeSelector) return;
       final selectedCustomer = customerSeq;
       if (selectedCustomer == null) return;
       isLoadingVehicleTypes.value = true;
@@ -119,9 +122,11 @@ class VehicleAssignmentPage extends HookConsumerWidget {
     }, const []);
 
     useEffect(() {
-      loadVehicleTypes();
+      if (showVehicleTypeSelector) {
+        loadVehicleTypes();
+      }
       return null;
-    }, [customerSeq]);
+    }, [customerSeq, showVehicleTypeSelector]);
 
     Future<void> selectTransporter() async {
       final selected = await showBookingLookupSheet(
@@ -212,32 +217,34 @@ class VehicleAssignmentPage extends HookConsumerWidget {
               const SizedBox(height: 12),
               const Center(child: CircularProgressIndicator()),
             ],
-            const SizedBox(height: 10),
-            SelectorTile(
-              label: 'Vehicle type',
-              value: selectedVehicleType.value,
-              onTap: customerSeq == null || isLoadingVehicleTypes.value
-                  ? null
-                  : () async {
-                      final selected = await showBookingLookupSheet(
-                        context,
-                        title: 'Vehicle type',
-                        search: (_) =>
-                            bookingLookups.vehicleTypes(customerSeq!),
-                        initialItems: vehicleTypeItems.value,
-                        searchLocally: true,
-                      );
-                      if (selected != null) {
-                        selectedVehicleType.value = selected.name;
-                        selectedVehicleTypeLookup.value = selected;
-                      }
-                    },
-            ),
-            if (isLoadingVehicleTypes.value)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Center(child: CircularProgressIndicator()),
+            if (showVehicleTypeSelector) ...[
+              const SizedBox(height: 10),
+              SelectorTile(
+                label: 'Vehicle type',
+                value: selectedVehicleType.value,
+                onTap: customerSeq == null || isLoadingVehicleTypes.value
+                    ? null
+                    : () async {
+                        final selected = await showBookingLookupSheet(
+                          context,
+                          title: 'Vehicle type',
+                          search: (_) =>
+                              bookingLookups.vehicleTypes(customerSeq!),
+                          initialItems: vehicleTypeItems.value,
+                          searchLocally: true,
+                        );
+                        if (selected != null) {
+                          selectedVehicleType.value = selected.name;
+                          selectedVehicleTypeLookup.value = selected;
+                        }
+                      },
               ),
+              if (isLoadingVehicleTypes.value)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+            ],
             const SizedBox(height: 10),
             SelectorTile(
               label: 'Driver',

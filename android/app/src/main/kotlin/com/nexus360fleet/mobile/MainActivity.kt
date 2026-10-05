@@ -1,4 +1,4 @@
-package com.asianlogisticssolutions.nexus360fleet.mobile
+package com.nexus360fleet.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 

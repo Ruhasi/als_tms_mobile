@@ -27,16 +27,9 @@ class AuthController extends AsyncNotifier<void> {
 
     state = const AsyncLoading();
     try {
-      final recaptchaToken = await ref
-          .read(recaptchaServiceProvider)
-          .createLoginToken();
       final loginResult = await ref
           .read(authRepositoryProvider)
-          .login(
-            username: username.trim(),
-            password: password,
-            recaptchaToken: recaptchaToken,
-          );
+          .login(username: username.trim(), password: password);
 
       return loginResult.fold(
         (failure) {

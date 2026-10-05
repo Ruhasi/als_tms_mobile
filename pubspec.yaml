@@ -4,7 +4,7 @@ description: "ALS TMS — transport management mobile app."
 
 publish_to: 'none' 
 
-version: 1.0.0+11
+version: 1.0.0+13
 
 environment:
   sdk: ^3.12.1
@@ -25,7 +25,6 @@ dependencies:
   auto_route: ^11.1.0
   google_fonts: ^8.0.1
   flutter_screenutil_plus: ^1.6.0
-  recaptcha_enterprise_flutter: ^18.9.1
   dartz: ^0.10.1
   omni_datetime_picker: ^2.3.2
 
