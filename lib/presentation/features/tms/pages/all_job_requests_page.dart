@@ -67,6 +67,33 @@ class AllJobRequestsPage extends HookConsumerWidget {
     final isLoadingMore = useState(false);
     final loadError = useState<String?>(null);
     final repository = ref.read(transportBookingRepositoryProvider);
+    final visibleFilters = [
+      ..._statusFilters,
+      if (selectedFilter.value.id != null &&
+          !_statusFilters.any((filter) => filter.id == selectedFilter.value.id))
+        selectedFilter.value,
+    ];
+    final chipKeys = useMemoized(
+      () => List.generate(visibleFilters.length, (_) => GlobalKey()),
+      [visibleFilters.map((filter) => filter.id).join(',')],
+    );
+
+    void scrollToSelectedFilter() {
+      final index = visibleFilters.indexWhere(
+        (filter) => filter.id == selectedFilter.value.id,
+      );
+      if (index < 0 || index >= chipKeys.length) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final chipContext = chipKeys[index].currentContext;
+        if (chipContext == null) return;
+        Scrollable.ensureVisible(
+          chipContext,
+          alignment: 0.4,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOut,
+        );
+      });
+    }
 
     Future<void> loadFirstPage(int? currentStatus) async {
       isLoading.value = true;
@@ -128,6 +155,11 @@ class AllJobRequestsPage extends HookConsumerWidget {
       return null;
     }, [selectedFilter.value.id]);
 
+    useEffect(() {
+      scrollToSelectedFilter();
+      return null;
+    }, [selectedFilter.value.id]);
+
     final normalizedQuery = query.value.trim().toLowerCase();
     final bookings =
         bookingPage.value?.content.where((booking) {
@@ -186,17 +218,21 @@ class AllJobRequestsPage extends HookConsumerWidget {
               child: ListView(
                 padding: EdgeInsets.symmetric(horizontal: 18.w),
                 scrollDirection: Axis.horizontal,
-                children: _statusFilters
-                    .map(
-                      (filter) => _statusTab(
-                        label: filter.name,
-                        selected: selectedFilter.value == filter,
-                        onTap: () => selectedFilter.value = filter,
+                children: [
+                  for (var index = 0; index < visibleFilters.length; index++)
+                    KeyedSubtree(
+                      key: chipKeys[index],
+                      child: _statusTab(
+                        label: visibleFilters[index].name,
+                        selected:
+                            selectedFilter.value.id == visibleFilters[index].id,
+                        onTap: () =>
+                            selectedFilter.value = visibleFilters[index],
                         styles: styles,
-                        color: filter.color,
+                        color: visibleFilters[index].color,
                       ),
-                    )
-                    .toList(),
+                    ),
+                ],
               ),
             ),
             if (isLoading.value)
@@ -259,7 +295,11 @@ JobStatusFilter _parseFilter(String? value) {
   if (filterId != null) {
     return _statusFilters.firstWhere(
       (filter) => filter.id == filterId,
-      orElse: () => _allStatusFilter,
+      orElse: () => JobStatusFilter(
+        id: filterId,
+        name: 'Status $filterId',
+        color: TmsColors.ink,
+      ),
     );
   }
 

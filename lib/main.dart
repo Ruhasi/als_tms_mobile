@@ -13,7 +13,8 @@ void main() {
       overrides: [
         appConfigProvider.overrideWithValue(
           const AppConfig(
-            apiBaseUrl: 'http://139.59.239.245:9090',
+            apiBaseUrl: 'http://152.42.195.41:9090', // Prod
+            // apiBaseUrl: 'http://139.59.239.245:9090', // Test
             enableNetworkLogs: true,
           ),
         ),

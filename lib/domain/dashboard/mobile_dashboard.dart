@@ -59,16 +59,44 @@ class DashboardStatusCount {
     required this.bucket,
     required this.label,
     required this.count,
+    required this.statuses,
   });
 
   final String bucket;
   final String label;
   final int count;
+  final List<DashboardStatusBreakdown> statuses;
 
   factory DashboardStatusCount.fromJson(Map<String, dynamic> json) =>
       DashboardStatusCount(
         bucket: _text(json['bucket']),
         label: _text(json['label']),
+        count: _asInt(json['count']),
+        statuses: (json['statuses'] as List? ?? const [])
+            .map(
+              (item) => DashboardStatusBreakdown.fromJson(
+                item as Map<String, dynamic>,
+              ),
+            )
+            .toList(),
+      );
+}
+
+class DashboardStatusBreakdown {
+  const DashboardStatusBreakdown({
+    required this.id,
+    required this.description,
+    required this.count,
+  });
+
+  final int id;
+  final String description;
+  final int count;
+
+  factory DashboardStatusBreakdown.fromJson(Map<String, dynamic> json) =>
+      DashboardStatusBreakdown(
+        id: _asInt(json['id']),
+        description: _text(json['description']),
         count: _asInt(json['count']),
       );
 }

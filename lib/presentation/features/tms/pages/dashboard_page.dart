@@ -412,11 +412,7 @@ Widget _dashboardStatusCounts(
                 status.label,
                 _statusColor(status.bucket),
                 styles,
-                onTap: () => context.router.push(
-                  AllJobRequestsRoute(
-                    initialFilter: _filterForBucket(status.bucket),
-                  ),
-                ),
+                onTap: () => _openBucketStatuses(context, status, styles),
               ),
             ),
           )
@@ -480,6 +476,95 @@ Color _statusColor(String bucket) => switch (bucket.toUpperCase()) {
   'CANCELLED' => TmsColors.red,
   _ => TmsColors.ink,
 };
+
+void _openBucketStatuses(
+  BuildContext context,
+  DashboardStatusCount bucket,
+  dynamic styles,
+) {
+  if (bucket.statuses.isEmpty) {
+    context.router.push(
+      AllJobRequestsRoute(initialFilter: _filterForBucket(bucket.bucket)),
+    );
+    return;
+  }
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: TmsColors.canvas,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(18.w, 4.h, 18.w, 18.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(bucket.label.toUpperCase(), style: styles.titleMedium),
+            SizedBox(height: 4.h),
+            Text(
+              '${bucket.count} jobs in this range',
+              style: styles.bodySmall.copyWith(fontSize: 12.sp),
+            ),
+            SizedBox(height: 12.h),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: bucket.statuses.length,
+                separatorBuilder: (_, _) => SizedBox(height: 8.h),
+                itemBuilder: (_, index) {
+                  final status = bucket.statuses[index];
+                  return Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12.r),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12.r),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        context.router.push(
+                          AllJobRequestsRoute(
+                            initialFilter: status.id.toString(),
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 14.w,
+                          vertical: 12.h,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                status.description,
+                                style: styles.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13.sp,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${status.count}',
+                              style: styles.titleMedium.copyWith(
+                                color: _statusColor(bucket.bucket),
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 
 String? _filterForBucket(String bucket) => switch (bucket.toUpperCase()) {
   'PENDING' => '1',

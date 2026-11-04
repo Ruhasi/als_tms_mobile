@@ -276,19 +276,11 @@ class TransportBookingListItem extends StatelessWidget {
               SizedBox(height: 4.h),
               Divider(height: 1, color: TmsColors.line),
               SizedBox(height: 4.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      booking.requestedArrivalTime,
-                      style: styles.bodySmall.copyWith(fontSize: 10.sp),
-                    ),
-                  ),
-                  Text(
-                    booking.customerReferenceNo,
-                    style: styles.bodySmall.copyWith(fontSize: 10.sp),
-                  ),
-                ],
+              Text(
+                booking.requestedArrivalTime,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: styles.bodySmall.copyWith(fontSize: 10.sp),
               ),
             ],
           ),

@@ -129,6 +129,7 @@ class JobSummaryPage extends HookConsumerWidget {
                               value: status.count,
                               fraction: total == 0 ? 0 : status.count / total,
                               color: _summaryStatusColor(status.bucket),
+                              statuses: status.statuses,
                             ),
                             SizedBox(height: 10.h),
                           ],
@@ -241,6 +242,7 @@ Widget _summaryStatusCard(
   required int value,
   required double fraction,
   required Color color,
+  List<DashboardStatusBreakdown> statuses = const [],
 }) => Container(
   padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
   decoration: BoxDecoration(
@@ -279,6 +281,31 @@ Widget _summaryStatusCard(
           backgroundColor: const Color(0xFFE8E8EA),
         ),
       ),
+      if (statuses.isNotEmpty) ...[
+        SizedBox(height: 12.h),
+        ...statuses.map(
+          (status) => Padding(
+            padding: EdgeInsets.only(bottom: 8.h),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    status.description,
+                    style: styles.bodySmall.copyWith(fontSize: 12.sp),
+                  ),
+                ),
+                Text(
+                  '${status.count}',
+                  style: styles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     ],
   ),
 );
