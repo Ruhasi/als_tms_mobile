@@ -7,7 +7,9 @@ import 'package:nexus_360/presentation/features/tms/widgets/job_list_item.dart';
 import '../../../../application/app_state/app_state_notifier_provider.dart';
 import '../../../../application/auth/auth_providers.dart';
 import '../../../../application/dashboard/mobile_dashboard_providers.dart';
+import '../../../../application/driver/driver_providers.dart';
 import '../../../../application/transport_booking/booking_lookup_providers.dart';
+import '../../../../domain/auth/app_access_role.dart';
 import '../../../../domain/dashboard/mobile_dashboard.dart';
 import '../../../../domain/transport_booking/transport_booking.dart';
 import '../../../core/misc/text_style_provider.dart';
@@ -24,6 +26,9 @@ class DashboardPage extends ConsumerWidget {
     final dashboardResult = ref.watch(mobileDashboardProvider);
     final recentBookingsResult = ref.watch(transportBookingsProvider(null));
     final profileResult = ref.watch(mobileUserProfileProvider);
+    final canDrive = ref.watch(
+      appStateNotifierProvider.select((state) => state.accessRoles.canDrive),
+    );
 
     ref.listen(mobileUserProfileProvider, (_, next) {
       next.whenData(
@@ -92,6 +97,7 @@ class DashboardPage extends ConsumerWidget {
           ref.invalidate(mobileUserProfileProvider);
           ref.invalidate(mobileDashboardProvider);
           ref.invalidate(transportBookingsProvider(null));
+          ref.invalidate(driverJobsProvider);
           if (context.mounted) context.router.replaceAll([const SignInRoute()]);
         },
       );
@@ -137,6 +143,15 @@ class DashboardPage extends ConsumerWidget {
                         onTap: () =>
                             context.router.push(const JobSummaryRoute()),
                       ),
+                      if (canDrive) ...[
+                        SizedBox(height: 12.h),
+                        _driverAccessCard(
+                          styles,
+                          onTap: () => context.router.push(
+                            const DriverDashboardRoute(),
+                          ),
+                        ),
+                      ],
                       SizedBox(height: 22.h),
                       Row(
                         children: [
@@ -291,6 +306,65 @@ Widget _dashboardHeader({
     ],
   ),
 );
+
+Widget _driverAccessCard(dynamic styles, {required VoidCallback onTap}) =>
+    Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15.r),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15.r),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(17.w, 14.h, 15.w, 14.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15.r),
+            border: Border.all(color: TmsColors.line),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38.w,
+                height: 38.h.toDouble(),
+                decoration: BoxDecoration(
+                  color: TmsColors.orange.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(
+                  Icons.local_shipping_outlined,
+                  color: TmsColors.orange,
+                  size: 21.sp,
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Driver jobs',
+                      style: styles.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'Open assigned trips, navigate, and upload POD',
+                      style: styles.bodySmall.copyWith(fontSize: 10.sp),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: TmsColors.muted,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
 Widget _summaryCard(dynamic styles, {required VoidCallback onTap}) => Material(
   color: TmsColors.ink,

@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../../domain/auth/app_access_role.dart';
 import '../app_state/app_state_notifier_provider.dart';
 import 'auth_providers.dart';
 
@@ -47,9 +48,12 @@ class AuthController extends AsyncNotifier<void> {
 
           await ref.read(sessionStorageProvider).save(session);
           log('session: ${session.accessToken}');
-          ref
-              .read(appStateNotifierProvider.notifier)
-              .setAccessToken(session.accessToken);
+          final notifier = ref.read(appStateNotifierProvider.notifier);
+          notifier.setAccessToken(session.accessToken);
+          notifier.setAccessRoles(
+            roles: mockRolesForUsername(username),
+            username: username.trim(),
+          );
           state = const AsyncData(null);
           return true;
         },

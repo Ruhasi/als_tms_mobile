@@ -83,6 +83,209 @@ class DashboardRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [DriverDashboardPage]
+class DriverDashboardRoute extends PageRouteInfo<void> {
+  const DriverDashboardRoute({List<PageRouteInfo>? children})
+    : super(DriverDashboardRoute.name, initialChildren: children);
+
+  static const String name = 'DriverDashboardRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const DriverDashboardPage();
+    },
+  );
+}
+
+/// generated route for
+/// [DriverJobDetailPage]
+class DriverJobDetailRoute extends PageRouteInfo<DriverJobDetailRouteArgs> {
+  DriverJobDetailRoute({
+    Key? key,
+    required int jobId,
+    List<PageRouteInfo>? children,
+  }) : super(
+         DriverJobDetailRoute.name,
+         args: DriverJobDetailRouteArgs(key: key, jobId: jobId),
+         rawPathParams: {'jobId': jobId},
+         initialChildren: children,
+       );
+
+  static const String name = 'DriverJobDetailRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final pathParams = data.inheritedPathParams;
+      final args = data.argsAs<DriverJobDetailRouteArgs>(
+        orElse: () =>
+            DriverJobDetailRouteArgs(jobId: pathParams.getInt('jobId')),
+      );
+      return DriverJobDetailPage(key: args.key, jobId: args.jobId);
+    },
+  );
+}
+
+class DriverJobDetailRouteArgs {
+  const DriverJobDetailRouteArgs({this.key, required this.jobId});
+
+  final Key? key;
+
+  final int jobId;
+
+  @override
+  String toString() {
+    return 'DriverJobDetailRouteArgs{key: $key, jobId: $jobId}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! DriverJobDetailRouteArgs) return false;
+    return key == other.key && jobId == other.jobId;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ jobId.hashCode;
+}
+
+/// generated route for
+/// [DriverJobHistoryPage]
+class DriverJobHistoryRoute extends PageRouteInfo<void> {
+  const DriverJobHistoryRoute({List<PageRouteInfo>? children})
+    : super(DriverJobHistoryRoute.name, initialChildren: children);
+
+  static const String name = 'DriverJobHistoryRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const DriverJobHistoryPage();
+    },
+  );
+}
+
+/// generated route for
+/// [DriverNavigationPage]
+class DriverNavigationRoute extends PageRouteInfo<DriverNavigationRouteArgs> {
+  DriverNavigationRoute({
+    Key? key,
+    required int jobId,
+    String stop = 'pickup',
+    List<PageRouteInfo>? children,
+  }) : super(
+         DriverNavigationRoute.name,
+         args: DriverNavigationRouteArgs(key: key, jobId: jobId, stop: stop),
+         rawPathParams: {'jobId': jobId},
+         rawQueryParams: {'stop': stop},
+         initialChildren: children,
+       );
+
+  static const String name = 'DriverNavigationRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final pathParams = data.inheritedPathParams;
+      final queryParams = data.queryParams;
+      final args = data.argsAs<DriverNavigationRouteArgs>(
+        orElse: () => DriverNavigationRouteArgs(
+          jobId: pathParams.getInt('jobId'),
+          stop: queryParams.getString('stop', 'pickup'),
+        ),
+      );
+      return DriverNavigationPage(
+        key: args.key,
+        jobId: args.jobId,
+        stop: args.stop,
+      );
+    },
+  );
+}
+
+class DriverNavigationRouteArgs {
+  const DriverNavigationRouteArgs({
+    this.key,
+    required this.jobId,
+    this.stop = 'pickup',
+  });
+
+  final Key? key;
+
+  final int jobId;
+
+  final String stop;
+
+  @override
+  String toString() {
+    return 'DriverNavigationRouteArgs{key: $key, jobId: $jobId, stop: $stop}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! DriverNavigationRouteArgs) return false;
+    return key == other.key && jobId == other.jobId && stop == other.stop;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ jobId.hashCode ^ stop.hashCode;
+}
+
+/// generated route for
+/// [DriverPodUploadPage]
+class DriverPodUploadRoute extends PageRouteInfo<DriverPodUploadRouteArgs> {
+  DriverPodUploadRoute({
+    Key? key,
+    required int jobId,
+    List<PageRouteInfo>? children,
+  }) : super(
+         DriverPodUploadRoute.name,
+         args: DriverPodUploadRouteArgs(key: key, jobId: jobId),
+         rawPathParams: {'jobId': jobId},
+         initialChildren: children,
+       );
+
+  static const String name = 'DriverPodUploadRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final pathParams = data.inheritedPathParams;
+      final args = data.argsAs<DriverPodUploadRouteArgs>(
+        orElse: () =>
+            DriverPodUploadRouteArgs(jobId: pathParams.getInt('jobId')),
+      );
+      return DriverPodUploadPage(key: args.key, jobId: args.jobId);
+    },
+  );
+}
+
+class DriverPodUploadRouteArgs {
+  const DriverPodUploadRouteArgs({this.key, required this.jobId});
+
+  final Key? key;
+
+  final int jobId;
+
+  @override
+  String toString() {
+    return 'DriverPodUploadRouteArgs{key: $key, jobId: $jobId}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! DriverPodUploadRouteArgs) return false;
+    return key == other.key && jobId == other.jobId;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ jobId.hashCode;
+}
+
+/// generated route for
 /// [JobDetailPage]
 class JobDetailRoute extends PageRouteInfo<JobDetailRouteArgs> {
   JobDetailRoute({Key? key, required int jobId, List<PageRouteInfo>? children})

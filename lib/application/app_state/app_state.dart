@@ -1,3 +1,4 @@
+import '../../domain/auth/app_access_role.dart';
 import '../../domain/auth/mobile_user_profile.dart';
 
 /// The application-wide state that is independent of any feature.
@@ -9,6 +10,8 @@ class AppState {
     this.isInitialized = false,
     this.accessToken,
     this.userProfile,
+    this.accessRoles = const [],
+    this.signedInUsername = '',
     this.sessionExpired = false,
     this.localeCode = 'en',
     this.themeMode = AppThemeMode.system,
@@ -17,6 +20,8 @@ class AppState {
   final bool isInitialized;
   final String? accessToken;
   final MobileUserProfile? userProfile;
+  final List<AppAccessRole> accessRoles;
+  final String signedInUsername;
   final bool sessionExpired;
   final String localeCode;
   final AppThemeMode themeMode;
@@ -27,6 +32,8 @@ class AppState {
     bool? isInitialized,
     Object? accessToken = _unset,
     Object? userProfile = _unset,
+    Object? accessRoles = _unset,
+    Object? signedInUsername = _unset,
     bool? sessionExpired,
     String? localeCode,
     AppThemeMode? themeMode,
@@ -39,6 +46,12 @@ class AppState {
       userProfile: identical(userProfile, _unset)
           ? this.userProfile
           : userProfile as MobileUserProfile?,
+      accessRoles: identical(accessRoles, _unset)
+          ? this.accessRoles
+          : accessRoles as List<AppAccessRole>,
+      signedInUsername: identical(signedInUsername, _unset)
+          ? this.signedInUsername
+          : signedInUsername as String,
       sessionExpired: sessionExpired ?? this.sessionExpired,
       localeCode: localeCode ?? this.localeCode,
       themeMode: themeMode ?? this.themeMode,

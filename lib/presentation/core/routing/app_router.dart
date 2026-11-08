@@ -21,5 +21,16 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: MonthlyStatusRoute.page),
     AutoRoute(page: VehicleAssignmentRoute.page),
     AutoRoute(page: ViaLocationRoute.page),
+    AutoRoute(page: DriverDashboardRoute.page),
+    AutoRoute(page: DriverJobDetailRoute.page, path: '/driver/job/:jobId'),
+    AutoRoute(
+      page: DriverNavigationRoute.page,
+      path: '/driver/job/:jobId/navigate',
+    ),
+    AutoRoute(
+      page: DriverPodUploadRoute.page,
+      path: '/driver/job/:jobId/pod',
+    ),
+    AutoRoute(page: DriverJobHistoryRoute.page),
   ];
 }

@@ -1,5 +1,10 @@
 export 'pages/all_job_requests_page.dart';
 export 'pages/dashboard_page.dart';
+export 'pages/driver_dashboard_page.dart';
+export 'pages/driver_job_detail_page.dart';
+export 'pages/driver_job_history_page.dart';
+export 'pages/driver_navigation_page.dart';
+export 'pages/driver_pod_upload_page.dart';
 export 'pages/job_detail_page.dart';
 export 'pages/job_summary_page.dart';
 export 'pages/monthly_status_page.dart';

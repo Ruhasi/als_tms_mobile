@@ -1,5 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../../domain/auth/app_access_role.dart';
 import '../../domain/auth/mobile_user_profile.dart';
 import 'app_state.dart';
 
@@ -16,6 +17,13 @@ final class AppStateNotifier extends Notifier<AppState> {
     state = state.copyWith(accessToken: token, sessionExpired: false);
   }
 
+  void setAccessRoles({
+    required List<AppAccessRole> roles,
+    required String username,
+  }) {
+    state = state.copyWith(accessRoles: roles, signedInUsername: username);
+  }
+
   void setUserProfile(MobileUserProfile profile) {
     state = state.copyWith(userProfile: profile);
   }
@@ -24,6 +32,8 @@ final class AppStateNotifier extends Notifier<AppState> {
     state = state.copyWith(
       accessToken: null,
       userProfile: null,
+      accessRoles: const <AppAccessRole>[],
+      signedInUsername: '',
       sessionExpired: sessionExpired,
     );
   }

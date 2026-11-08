@@ -5,7 +5,9 @@ import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
 import 'package:nexus_360/presentation/core/misc/text_style_provider.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../../../../application/app_state/app_state_notifier_provider.dart';
 import '../../../../application/auth/auth_controller.dart';
+import '../../../../domain/auth/app_access_role.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/theme/tms_theme.dart';
 import '../../../core/widgets/tms_widgets.dart';
@@ -95,7 +97,14 @@ class SignInPage extends HookConsumerWidget {
                                 );
                             if (!context.mounted) return;
                             if (signedIn) {
-                              context.router.replace(const DashboardRoute());
+                              final roles = ref
+                                  .read(appStateNotifierProvider)
+                                  .accessRoles;
+                              context.router.replace(
+                                roles.isDriverOnly
+                                    ? const DriverDashboardRoute()
+                                    : const DashboardRoute(),
+                              );
                               return;
                             }
                             final error = ref
